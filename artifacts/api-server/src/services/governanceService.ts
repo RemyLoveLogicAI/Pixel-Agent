@@ -1,5 +1,7 @@
 import { db, governanceRequestsTable, agentsTable, companiesTable, capabilityTokensTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
+import { capabilityTokenService } from "./capabilityTokenService.js";
+import { hierarchyService } from "./hierarchyService.js";
 
 /**
  * Capability Token - defines what an agent can do
@@ -221,7 +223,8 @@ export class GovernanceService {
     }
 
     /**
-     * Validate if an agent can perform an action
+     * Validate if an agent can perform an action.
+     * Delegates to CapabilityTokenService for DB-authoritative token checks.
      */
     async validateCapability(
         agentId: string,
@@ -232,79 +235,35 @@ export class GovernanceService {
             .from(agentsTable)
             .where(eq(agentsTable.id, agentId));
 
-        if (!agent) {
-            return { allowed: false, reason: "Agent not found" };
-        }
+        if (!agent) return { allowed: false, reason: "Agent not found" };
+        if (agent.status === "terminated") return { allowed: false, reason: "Agent is terminated" };
 
-        if (agent.status === "terminated") {
-            return { allowed: false, reason: "Agent is terminated" };
-        }
-
-        // Parse capability token
-        const capability = agent.capabilityToken as CapabilityToken | null;
-
-        if (!capability) {
-            // No capability token - check basic scopes
-            const roleScopes = this.getDefaultScopesForRole(agent.role);
-            const hasScope = roleScopes.some(s => requiredScope.startsWith(s));
-            return { allowed: hasScope, reason: hasScope ? undefined : "No capability token" };
-        }
-
-        // Check if scope is in capability
-        const hasScope = capability.scopes.some(s =>
-            requiredScope.startsWith(s) || requiredScope === s
-        );
-
-        if (!hasScope) {
-            return {
-                allowed: false,
-                reason: `Missing required scope: ${requiredScope}`
-            };
-        }
-
-        // Check expiration
-        if (capability.expiresAt && new Date(capability.expiresAt) < new Date()) {
-            return { allowed: false, reason: "Capability token expired" };
-        }
-
-        return { allowed: true };
+        return capabilityTokenService.verify(agentId, requiredScope);
     }
 
     /**
-     * Check if agent can delegate to another agent
+     * Check if fromAgent can delegate to toAgent.
+     * Delegates to HierarchyService for authoritative validation.
      */
     async validateDelegation(
         fromAgentId: string,
-        toAgentId: string
+        toAgentId: string,
+        scopes: string[] = []
     ): Promise<{ allowed: boolean; reason?: string }> {
-        const [fromAgent, toAgent] = await Promise.all([
-            db.select().from(agentsTable).where(eq(agentsTable.id, fromAgentId)).then(r => r[0]),
-            db.select().from(agentsTable).where(eq(agentsTable.id, toAgentId)).then(r => r[0]),
-        ]);
+        const [fromAgent] = await db
+            .select()
+            .from(agentsTable)
+            .where(eq(agentsTable.id, fromAgentId));
 
-        if (!fromAgent || !toAgent) {
-            return { allowed: false, reason: "Agent not found" };
-        }
+        if (!fromAgent) return { allowed: false, reason: "Agent not found" };
 
-        // Check hierarchy - can only delegate to direct reports
-        if (toAgent.managerId !== fromAgentId) {
-            return { allowed: false, reason: "Can only delegate to direct reports" };
-        }
+        const snapshot = fromAgent.capabilityToken as { scopes?: string[] } | null;
+        const fromScopes: string[] = snapshot?.scopes ?? this.getDefaultScopesForRole(fromAgent.role);
 
-        // Check level difference
-        if (toAgent.level <= fromAgent.level) {
-            return { allowed: false, reason: "Cannot delegate to same or higher level" };
-        }
-
-        // Check capability token scopes
-        const capability = fromAgent.capabilityToken as CapabilityToken | null;
-        if (capability) {
-            if (!capability.delegateToLevels.includes(toAgent.level)) {
-                return { allowed: false, reason: "Not authorized to delegate to this level" };
-            }
-        }
-
-        return { allowed: true };
+        const { valid, reason } = await hierarchyService.validateDelegation(
+            fromAgentId, toAgentId, scopes, fromScopes
+        );
+        return { allowed: valid, reason };
     }
 
     /**

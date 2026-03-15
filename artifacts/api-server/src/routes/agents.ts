@@ -2,7 +2,8 @@ import { Router } from "express";
 import { eq, and, desc, isNull } from "drizzle-orm";
 import { db, agentsTable, capabilityTokensTable, insertAgentSchema, type Agent } from "@workspace/db";
 import { ApiError } from "../middlewares/error-handler.js";
-import { governanceService } from "../services/governanceService.js";
+import { capabilityTokenService } from "../services/capabilityTokenService.js";
+import { hierarchyService } from "../services/hierarchyService.js";
 
 const router = Router();
 
@@ -112,6 +113,158 @@ router.delete("/companies/:companyId/agents/:agentId", async (req, res, next) =>
       .returning();
     if (result.length === 0) return next(new ApiError(404, "Agent not found"));
     res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Capability Token routes ──────────────────────────────────────────────────
+
+// GET active (non-revoked) tokens for an agent
+router.get("/companies/:companyId/agents/:agentId/capability-tokens", async (req, res, next) => {
+  try {
+    const { companyId, agentId } = req.params;
+    const [agent] = await db.select().from(agentsTable).where(
+      and(eq(agentsTable.companyId, companyId), eq(agentsTable.id, agentId))
+    );
+    if (!agent) return next(new ApiError(404, "Agent not found"));
+
+    const tokens = await db
+      .select()
+      .from(capabilityTokensTable)
+      .where(and(eq(capabilityTokensTable.agentId, agentId), isNull(capabilityTokensTable.revokedAt)))
+      .orderBy(desc(capabilityTokensTable.createdAt));
+    res.json(tokens);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST issue a new capability token to an agent
+router.post("/companies/:companyId/agents/:agentId/capability-tokens", async (req, res, next) => {
+  try {
+    const { companyId, agentId } = req.params;
+    const { scopes, maxSingleSpendUsd, expiresInSeconds } = req.body;
+    if (!Array.isArray(scopes) || scopes.length === 0) {
+      return next(new ApiError(400, "scopes must be a non-empty array"));
+    }
+    const [agent] = await db.select().from(agentsTable).where(
+      and(eq(agentsTable.companyId, companyId), eq(agentsTable.id, agentId))
+    );
+    if (!agent) return next(new ApiError(404, "Agent not found"));
+
+    const token = await capabilityTokenService.mint({
+      issuedBy: req.body.issuedBy ?? agentId,
+      agentId,
+      scopes,
+      maxSingleSpendUsd: maxSingleSpendUsd ?? 10,
+      ttlSeconds: expiresInSeconds ?? 86400,
+    });
+    res.status(201).json(token);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE revoke a specific capability token
+router.delete("/companies/:companyId/agents/:agentId/capability-tokens/:tokenId", async (req, res, next) => {
+  try {
+    const { companyId, agentId, tokenId } = req.params;
+    const [agent] = await db.select().from(agentsTable).where(
+      and(eq(agentsTable.companyId, companyId), eq(agentsTable.id, agentId))
+    );
+    if (!agent) return next(new ApiError(404, "Agent not found"));
+
+    await capabilityTokenService.revoke(tokenId);
+    res.status(204).send();
+  } catch (err) {
+    if ((err as Error).message?.startsWith("Token not found")) {
+      return next(new ApiError(404, "Token not found"));
+    }
+    next(err);
+  }
+});
+
+// POST validate delegation from one agent to another (dry-run check)
+router.post("/companies/:companyId/agents/:agentId/validate-delegation", async (req, res, next) => {
+  try {
+    const { companyId, agentId } = req.params;
+    const { toAgentId, scopes } = req.body;
+    if (!toAgentId) return next(new ApiError(400, "toAgentId is required"));
+    if (!Array.isArray(scopes) || scopes.length === 0) {
+      return next(new ApiError(400, "scopes must be a non-empty array"));
+    }
+
+    const [from] = await db.select().from(agentsTable).where(
+      and(eq(agentsTable.companyId, companyId), eq(agentsTable.id, agentId))
+    );
+    if (!from) return next(new ApiError(404, "Agent not found"));
+
+    const snapshot = from.capabilityToken as { scopes?: string[] } | null;
+    const fromScopes: string[] = snapshot?.scopes ?? [];
+
+    const result = await hierarchyService.validateDelegation(agentId, toAgentId, scopes, fromScopes);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST delegate a subset of scopes to a direct report
+router.post("/companies/:companyId/agents/:agentId/delegate", async (req, res, next) => {
+  try {
+    const { companyId, agentId } = req.params;
+    const { toAgentId, scopes, maxSingleSpendUsd, ttlSeconds } = req.body;
+    if (!toAgentId) return next(new ApiError(400, "toAgentId is required"));
+    if (!Array.isArray(scopes) || scopes.length === 0) {
+      return next(new ApiError(400, "scopes must be a non-empty array"));
+    }
+
+    const [from] = await db.select().from(agentsTable).where(
+      and(eq(agentsTable.companyId, companyId), eq(agentsTable.id, agentId))
+    );
+    if (!from) return next(new ApiError(404, "Agent not found"));
+
+    const token = await capabilityTokenService.delegate({
+      fromAgentId: agentId,
+      toAgentId,
+      scopes,
+      maxSingleSpendUsd: maxSingleSpendUsd ?? 5,
+      ttlSeconds,
+    });
+    res.status(201).json(token);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET reporting chain for an agent (upward to root)
+router.get("/companies/:companyId/agents/:agentId/reporting-chain", async (req, res, next) => {
+  try {
+    const { companyId, agentId } = req.params;
+    const [agent] = await db.select().from(agentsTable).where(
+      and(eq(agentsTable.companyId, companyId), eq(agentsTable.id, agentId))
+    );
+    if (!agent) return next(new ApiError(404, "Agent not found"));
+
+    const chain = await hierarchyService.getReportingChain(agentId);
+    res.json(chain);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET direct reports for an agent
+router.get("/companies/:companyId/agents/:agentId/direct-reports", async (req, res, next) => {
+  try {
+    const { companyId, agentId } = req.params;
+    const [agent] = await db.select().from(agentsTable).where(
+      and(eq(agentsTable.companyId, companyId), eq(agentsTable.id, agentId))
+    );
+    if (!agent) return next(new ApiError(404, "Agent not found"));
+
+    const reports = await hierarchyService.getDirectReports(agentId);
+    res.json(reports);
   } catch (err) {
     next(err);
   }
