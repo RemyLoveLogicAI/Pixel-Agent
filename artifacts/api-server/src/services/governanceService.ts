@@ -283,14 +283,15 @@ export class GovernanceService {
     }
 
     /**
-     * Issue a capability token to an agent
+     * Issue a capability token to an agent.
+     * Delegates to CapabilityTokenService.mint for consistent token management.
      */
     async issueCapabilityToken(
         agentId: string,
         scopes: string[],
         maxSingleSpendUsd: number,
-        expiresInSeconds: number = 86400 // 24 hours default
-    ): Promise<CapabilityToken> {
+        expiresInSeconds: number = 86400
+    ): Promise<typeof capabilityTokensTable.$inferSelect> {
         const [agent] = await db
             .select()
             .from(agentsTable)
@@ -298,44 +299,13 @@ export class GovernanceService {
 
         if (!agent) throw new Error("Agent not found");
 
-        const capability: CapabilityToken = {
+        return capabilityTokenService.mint({
+            issuedBy: agent.managerId ?? agentId,
             agentId,
-            role: agent.role,
-            level: agent.level,
             scopes,
-            delegateToLevels: this.getDelegateLevels(agent.level),
-            escalateTo: agent.managerId ?? "",
             maxSingleSpendUsd,
-            issuedAt: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + expiresInSeconds * 1000).toISOString(),
-        };
-
-        const tokenId = crypto.randomUUID();
-        await Promise.all([
-            db.update(agentsTable)
-                .set({ capabilityToken: capability as any })
-                .where(eq(agentsTable.id, agentId)),
-            db.insert(capabilityTokensTable).values({
-                id: tokenId,
-                agentId,
-                issuedBy: agent.managerId ?? agentId,
-                scopes: scopes,
-                delegationDepth: agent.delegationDepth,
-                maxDelegationDepth: agent.delegationLimit,
-                expiresAt: new Date(Date.now() + expiresInSeconds * 1000),
-            }),
-        ]);
-
-        return capability;
-    }
-
-    /**
-     * Get allowed delegation levels based on agent level
-     */
-    private getDelegateLevels(agentLevel: number): number[] {
-        // Can delegate to any level higher than own (subordinates)
-        const maxLevel = 5; // IC level
-        return Array.from({ length: maxLevel - agentLevel }, (_, i) => agentLevel + i + 1);
+            ttlSeconds: expiresInSeconds,
+        });
     }
 }
 
