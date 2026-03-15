@@ -1,6 +1,7 @@
 import express, { type Express } from "express";
 import cors from "cors";
-import router from "./routes";
+import router from "./routes/index.js";
+import { notFound, errorHandler } from "./middlewares/error-handler.js";
 
 const app: Express = express();
 
@@ -9,5 +10,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+
+app.use(notFound);
+app.use(errorHandler);
 
 export default app;

@@ -47,3 +47,11 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+.copilot-specs-cache/
+
+# Tool configs with secrets
+.gemini/mcp_config.json
+
+# Ephemeral IDE state
+.sii/ide-port
+.sii/ide-port.json

@@ -11,3 +11,5 @@ export * from "./swarm-messages";
 export * from "./governance-requests";
 export * from "./budget-alerts";
 export * from "./memory-entries";
+export * from "./capability-tokens";
+export * from "./heartbeat-dead-letters";

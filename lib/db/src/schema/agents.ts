@@ -24,6 +24,8 @@ export const agentsTable = pgTable("agents", {
   nextHeartbeatAt: timestamp("next_heartbeat_at"),
   deskX: integer("desk_x"),
   deskY: integer("desk_y"),
+  delegationLimit: integer("delegation_limit").default(3).notNull(),
+  delegationDepth: integer("delegation_depth").default(0).notNull(),
   spriteKey: text("sprite_key"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
