@@ -1,12 +1,10 @@
 import { swarmEngine } from '../services/swarmEngine';
-import yargs from 'yargs';
-import { hideBin } from 'yargs/helpers';
 
 /**
  * Hyper‑Swarm CLI
  *
  * Usage:
- *   ts-node artifacts/api-server/src/cli/hyperSwarm.ts \
+ *   tsx artifacts/api-server/src/cli/hyperSwarm.ts \
  *     --companyId <companyId> \
  *     --goalId <goalId> \
  *     --leaderAgentId <leaderAgentId> \
@@ -19,49 +17,32 @@ import { hideBin } from 'yargs/helpers';
  *   4️⃣ executeSwarm (agents run in parallel)
  *   5️⃣ synthesizeSwarm
  *   6️⃣ dissolveSwarm
- *
- * All phases are executed sequentially, while the actual
- * agent work inside `executeSwarm` remains parallel as
- * defined in `SwarmEngine`.
  */
 
-async function runHyperSwarm() {
-    const argv = await yargs(hideBin(process.argv))
-        .option('companyId', {
-            type: 'string',
-            demandOption: true,
-            describe: 'Identifier of the company owning the swarm',
-        })
-        .option('goalId', {
-            type: 'string',
-            demandOption: true,
-            describe: 'Goal identifier the swarm should achieve',
-        })
-        .option('leaderAgentId', {
-            type: 'string',
-            demandOption: true,
-            describe: 'Agent ID that will act as the swarm leader',
-        })
-        .option('taskDescription', {
-            type: 'string',
-            demandOption: true,
-            describe: 'Human‑readable description of the task',
-        })
-        .help()
-        .alias('help', 'h')
-        .parse();
+function parseArgs(): Record<string, string> {
+    const args: Record<string, string> = {};
+    const raw = process.argv.slice(2);
+    for (let i = 0; i < raw.length; i++) {
+        if (raw[i].startsWith('--')) {
+            const key = raw[i].slice(2);
+            const val = raw[i + 1] && !raw[i + 1].startsWith('--') ? raw[++i] : 'true';
+            args[key] = val;
+        }
+    }
+    return args;
+}
 
-    const {
-        companyId,
-        goalId,
-        leaderAgentId,
-        taskDescription,
-    } = argv as {
-        companyId: string;
-        goalId: string;
-        leaderAgentId: string;
-        taskDescription: string;
-    };
+async function runHyperSwarm() {
+    const argv = parseArgs();
+    const required = ['companyId', 'goalId', 'leaderAgentId', 'taskDescription'] as const;
+    for (const key of required) {
+        if (!argv[key]) {
+            console.error(`❌ Missing required argument: --${key}`);
+            process.exit(2);
+        }
+    }
+
+    const { companyId, goalId, leaderAgentId, taskDescription } = argv as Record<typeof required[number], string>;
 
     console.log('🚀 Starting hyper‑swarm sprint...');
     // 1️⃣ Propose
@@ -90,7 +71,7 @@ async function runHyperSwarm() {
 
     // 5️⃣ Synthesize
     const synthResult = await swarmEngine.synthesizeSwarm(proposeResult.swarmId);
-    console.log('✅ Synthesis result summary:', synthResult.synthesisResult.summary);
+    console.log('✅ Synthesis result summary:', synthResult.synthesisResult.finalSummary);
 
     // 6️⃣ Dissolve
     const dissolveResult = await swarmEngine.dissolveSwarm(proposeResult.swarmId);
