@@ -1,0 +1,95 @@
+<details>
+<summary>Documentation Metadata (click to expand)</summary>
+
+```json
+{
+  "doc_type": "file_overview",
+  "file_path": "artifacts/api-server/src/cli/hyperSwarm.ts",
+  "source_hash": "d07b460de4421be2b3dca9cdf8428908fa8ecfb8948cc39accdf685d448dd47f",
+  "last_updated": "2026-03-15T21:53:26.547134+00:00",
+  "tokens_used": 4203,
+  "complexity_score": 3,
+  "estimated_review_time_minutes": 10,
+  "external_dependencies": [
+    "yargs",
+    "yargs/helpers"
+  ]
+}
+```
+
+</details>
+
+[Documentation Home](../../../../README.md) > [artifacts](../../../README.md) > [api-server](../../README.md) > [src](../README.md) > [cli](./README.md) > **hyperSwarm**
+
+---
+
+# hyperSwarm.ts
+
+> **File:** `artifacts/api-server/src/cli/hyperSwarm.ts`
+
+![Complexity: Low](https://img.shields.io/badge/Complexity-Low-green) ![Review Time: 10min](https://img.shields.io/badge/Review_Time-10min-blue)
+
+## 📑 Table of Contents
+
+
+- [Overview](#overview)
+- [Dependencies](#dependencies)
+- [Architecture Notes](#architecture-notes)
+- [Usage Examples](#usage-examples)
+- [Maintenance Notes](#maintenance-notes)
+- [Functions and Classes](#functions-and-classes)
+
+---
+
+## Overview
+
+This file provides a CLI entrypoint runHyperSwarm that parses required flags (companyId, goalId, leaderAgentId, taskDescription) using yargs and orchestrates a full 'hyper‑swarm' lifecycle by calling async methods on swarmEngine in sequence: propose, approve, spawn, execute, synthesize, dissolve. It logs brief summaries from each result and exits with code 1 on errors.
+
+The script assumes specific return shapes from swarmEngine (e.g., proposeResult.swarmId, spawnResult.spawnedAgents, execResult.executionResults, synthResult.synthesisResult.summary) and is intended for one-shot use via ts-node or compiled Node.js.
+
+## Dependencies
+
+### External Dependencies
+
+| Module | Usage |
+| --- | --- |
+| `yargs` | Default import used to build the CLI parser: yargs(hideBin(process.argv)).option(...) is used to declare required string options (companyId, goalId, leaderAgentId, taskDescription), plus .help(), .alias('help','h'), and .parse() to obtain argv. |
+| `yargs/helpers` | Imports hideBin helper and passes hideBin(process.argv) into yargs to strip node/ts-node binary args before parsing. |
+
+### Internal Dependencies
+
+| Module | Usage |
+| --- | --- |
+| [../services/swarmEngine](../../services/swarmEngine.md) | Imports the named export swarmEngine. The script calls swarmEngine.proposeSwarm(companyId, goalId, leaderAgentId, taskDescription), swarmEngine.approveSwarm(swarmId, leaderAgentId), swarmEngine.spawnSwarm(swarmId), swarmEngine.executeSwarm(swarmId), swarmEngine.synthesizeSwarm(swarmId), and swarmEngine.dissolveSwarm(swarmId). The code expects returned objects to contain: proposeResult.swarmId and proposeResult.message; approveResult.message; spawnResult.spawnedAgents (array); execResult.executionResults (array); synthResult.synthesisResult.summary; dissolveResult.phase. |
+
+## 📁 Directory
+
+This file is part of the **cli** directory. View the [directory index](_docs/artifacts/api-server/src/cli/README.md) to see all files in this module.
+
+## Architecture Notes
+
+- Sequential orchestration: the top-level function runHyperSwarm executes swarm lifecycle phases in sequence, relying on swarmEngine to manage any parallelism (executeSwarm delegates parallel agent work internally).
+- Lightweight CLI wrapper: this file focuses solely on argument parsing, progress logging, and calling swarmEngine; it assumes swarmEngine exposes synchronous-looking async methods that return structured result objects.
+- Fail-fast behavior: unhandled exceptions in runHyperSwarm are caught at the top level and cause process.exit(1), making this suitable for scripting/CI usage but meaning callers should rely on exit codes for failure detection.
+
+## Usage Examples
+
+### Main use case
+
+Run the hyper-swarm lifecycle from the command line (example using ts-node): ts-node artifacts/api-server/src/cli/hyperSwarm.ts --companyId <companyId> --goalId <goalId> --leaderAgentId <leaderAgentId> --taskDescription "<description>". The script will log progress for each phase and exit 0 on success or 1 on failure.
+
+## Maintenance Notes
+
+- This script depends on the exact return shape of swarmEngine methods; changes to those return objects (property names like swarmId, message, spawnedAgents, executionResults, synthesisResult.summary, or phase) will require updating the logging and any downstream consumers.
+- Because the script calls approveSwarm immediately after proposeSwarm, there is no human approval step—be careful when using in environments where manual approval is required.
+- Designed for one-shot runs: long-running or large-scale swarms should be monitored via swarmEngine's own telemetry/logging rather than relying solely on this CLI's console output.
+
+---
+
+## Navigation
+
+**↑ Parent Directory:** [Go up](_docs/artifacts/api-server/src/cli/README.md)
+
+---
+
+*This documentation was automatically generated by AI ([Woden DocBot](https://github.com/marketplace/ai-document-creator)) and may contain errors. It is the responsibility of the user to validate the accuracy and completeness of this documentation.*
