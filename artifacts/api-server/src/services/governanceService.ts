@@ -1,4 +1,4 @@
-import { db, governanceRequestsTable, agentsTable, companiesTable } from "@workspace/db";
+import { db, governanceRequestsTable, agentsTable, companiesTable, capabilityTokensTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 
 /**
@@ -351,10 +351,21 @@ export class GovernanceService {
             expiresAt: new Date(Date.now() + expiresInSeconds * 1000).toISOString(),
         };
 
-        await db
-            .update(agentsTable)
-            .set({ capabilityToken: capability as any })
-            .where(eq(agentsTable.id, agentId));
+        const tokenId = crypto.randomUUID();
+        await Promise.all([
+            db.update(agentsTable)
+                .set({ capabilityToken: capability as any })
+                .where(eq(agentsTable.id, agentId)),
+            db.insert(capabilityTokensTable).values({
+                id: tokenId,
+                agentId,
+                issuedBy: agent.managerId ?? agentId,
+                scopes: scopes,
+                delegationDepth: agent.delegationDepth,
+                maxDelegationDepth: agent.delegationLimit,
+                expiresAt: new Date(Date.now() + expiresInSeconds * 1000),
+            }),
+        ]);
 
         return capability;
     }

@@ -17,7 +17,7 @@ export class SandboxService {
 
     validate(output: string): { safe: boolean; violations: string[] } {
         const violations = INJECTION_PATTERNS
-            .filter(({ pattern }) => pattern.test(output))
+            .filter(({ pattern }) => new RegExp(pattern.source, 'i').test(output))
             .map(({ label }) => label);
         return { safe: violations.length === 0, violations };
     }

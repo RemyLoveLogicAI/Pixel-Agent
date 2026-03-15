@@ -1,8 +1,7 @@
 import { db, swarmRunsTable, swarmAgentsTable, swarmMessagesTable, agentsTable, goalsTable } from '@workspace/db';
 import { eq, and, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
-import { executeAgentHeartbeat } from './agentExecutor';
-import { triggerCompanyHeartbeat } from './heartbeatRunner';
+import { synthesisService } from './synthesisService';
 
 export class SwarmEngine {
     /**
@@ -229,43 +228,16 @@ export class SwarmEngine {
             throw new Error(`Swarm is not in executing phase. Current phase: ${swarm.phase}`);
         }
 
-        // Get all completed agents and their outputs
-        const agents = await db
-            .select()
-            .from(swarmAgentsTable)
-            .where(
-                and(
-                    eq(swarmAgentsTable.swarmRunId, swarmId),
-                    eq(swarmAgentsTable.status, 'completed')
-                )
-            );
-
-        // Collect outputs
-        const agentOutputs = agents.map(agent => ({
-            agentId: agent.id,
-            role: agent.role,
-            output: agent.output ? (agent.output as any) : null
-        }));
-
-        // Create synthesis result (in real system, this would use LLM to synthesize)
-        const synthesisResult = {
-            task: swarm.taskDescription,
-            summary: `Swarm completed task: ${swarm.taskDescription}`,
-            contributions: agentOutputs.map(output => ({
-                role: output.role,
-                summary: output.output?.summary || 'No summary'
-            })),
-            final_output: `Combined result from ${agentOutputs.length} specialist agents.`,
-            totalCost: agentOutputs.reduce((sum, agent) => sum + (agent.output?.costUsd ?? 0), 0)
-        };
+        // Sandbox + synthesize via SynthesisService (prompt-injection safe)
+        const synthesisResult = await synthesisService.synthesize(swarmId, swarm.leaderAgentId ?? '');
 
         // Update swarm with synthesis result and phase
         const [updated] = await db
             .update(swarmRunsTable)
             .set({
                 phase: 'synthesizing',
-                synthesisResult: synthesisResult,
-                totalCostUsd: synthesisResult.totalCost
+                synthesisResult: synthesisResult as any,
+                totalCostUsd: synthesisResult.totalCostUsd,
             })
             .where(eq(swarmRunsTable.id, swarmId))
             .returning();
@@ -274,7 +246,9 @@ export class SwarmEngine {
             swarmId: updated.id,
             phase: updated.phase,
             synthesisResult,
-            message: 'Swarm synthesis completed.'
+            message: synthesisResult.violationsFound > 0
+                ? `Swarm synthesis completed. ${synthesisResult.violationsFound} injection attempt(s) redacted.`
+                : 'Swarm synthesis completed.',
         };
     }
 

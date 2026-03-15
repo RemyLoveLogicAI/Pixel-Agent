@@ -8,6 +8,7 @@ export const modules: ModuleMap = {
   "./components/mockups/GovernanceQueue.tsx": () => import("../components/mockups/GovernanceQueue.tsx"),
   "./components/mockups/HeartbeatPanel.tsx": () => import("../components/mockups/HeartbeatPanel.tsx"),
   "./components/mockups/OrgChart.tsx": () => import("../components/mockups/OrgChart.tsx"),
+  "./components/mockups/Shell.tsx": () => import("../components/mockups/Shell.tsx"),
   "./components/mockups/SwarmControl.tsx": () => import("../components/mockups/SwarmControl.tsx"),
   "./components/mockups/TaskBoard.tsx": () => import("../components/mockups/TaskBoard.tsx")
 };
