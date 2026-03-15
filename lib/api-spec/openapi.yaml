@@ -2,21 +2,45 @@ openapi: 3.1.0
 info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 0.2.0
+  description: Autonomous Pixel Company Platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: companies
+    description: Company lifecycle
+  - name: agents
+    description: Agent CRUD + hierarchy
+  - name: goals
+    description: Hierarchical goal management
+  - name: tasks
+    description: Agent task management
+  - name: heartbeat
+    description: Heartbeat orchestration
+  - name: swarms
+    description: Swarm orchestration
+  - name: governance
+    description: Governance requests
+  - name: tools
+    description: Tool registry
+  - name: budget
+    description: Budget tracking
+  - name: traces
+    description: Observability traces
+  - name: memory
+    description: Agent memory
+  - name: events
+    description: SSE event stream
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,7 +48,840 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── Companies ──
+  /companies:
+    get:
+      operationId: listCompanies
+      tags: [companies]
+      summary: List all companies
+      responses:
+        "200":
+          description: List of companies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Company"
+    post:
+      operationId: createCompany
+      tags: [companies]
+      summary: Create a company
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCompanyInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+
+  /companies/{companyId}:
+    get:
+      operationId: getCompany
+      tags: [companies]
+      summary: Get a company
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      responses:
+        "200":
+          description: Company details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+    patch:
+      operationId: updateCompany
+      tags: [companies]
+      summary: Update a company
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCompanyInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+    delete:
+      operationId: deleteCompany
+      tags: [companies]
+      summary: Delete a company
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Agents ──
+  /companies/{companyId}/agents:
+    get:
+      operationId: listAgents
+      tags: [agents]
+      summary: List agents for a company
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      responses:
+        "200":
+          description: List of agents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Agent"
+    post:
+      operationId: createAgent
+      tags: [agents]
+      summary: Hire an agent
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAgentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+
+  /companies/{companyId}/agents/{agentId}:
+    get:
+      operationId: getAgent
+      tags: [agents]
+      summary: Get an agent
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/AgentId"
+      responses:
+        "200":
+          description: Agent details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+    patch:
+      operationId: updateAgent
+      tags: [agents]
+      summary: Update an agent
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/AgentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAgentInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+    delete:
+      operationId: deleteAgent
+      tags: [agents]
+      summary: Fire an agent
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/AgentId"
+      responses:
+        "204":
+          description: Deleted
+
+  /companies/{companyId}/agents/org-chart:
+    get:
+      operationId: getOrgChart
+      tags: [agents]
+      summary: Get org chart tree
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      responses:
+        "200":
+          description: Org chart tree
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrgChartNode"
+
+  # ── Goals ──
+  /companies/{companyId}/goals:
+    get:
+      operationId: listGoals
+      tags: [goals]
+      summary: List goals
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      responses:
+        "200":
+          description: List of goals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Goal"
+    post:
+      operationId: createGoal
+      tags: [goals]
+      summary: Create a goal
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGoalInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+
+  /companies/{companyId}/goals/{goalId}:
+    get:
+      operationId: getGoal
+      tags: [goals]
+      summary: Get a goal
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/GoalId"
+      responses:
+        "200":
+          description: Goal details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+    patch:
+      operationId: updateGoal
+      tags: [goals]
+      summary: Update a goal
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/GoalId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGoalInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+
+  /companies/{companyId}/goals/tree:
+    get:
+      operationId: getGoalTree
+      tags: [goals]
+      summary: Get hierarchical goal tree
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      responses:
+        "200":
+          description: Goal tree
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GoalTreeNode"
+
+  # ── Tasks ──
+  /companies/{companyId}/tasks:
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: List agent tasks
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: agentId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AgentTask"
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create a task
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentTask"
+
+  /companies/{companyId}/tasks/{taskId}:
+    patch:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Update a task
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentTask"
+
+  /companies/{companyId}/tasks/{taskId}/claim:
+    post:
+      operationId: claimTask
+      tags: [tasks]
+      summary: Claim a task (optimistic locking)
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClaimTaskInput"
+      responses:
+        "200":
+          description: Claimed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentTask"
+        "409":
+          description: Version conflict
+
+  # ── Heartbeat ──
+  /companies/{companyId}/heartbeat:
+    post:
+      operationId: triggerHeartbeat
+      tags: [heartbeat]
+      summary: Trigger heartbeat cycle
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TriggerHeartbeatInput"
+      responses:
+        "202":
+          description: Heartbeat started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HeartbeatRun"
+
+  /companies/{companyId}/heartbeat/runs:
+    get:
+      operationId: listHeartbeatRuns
+      tags: [heartbeat]
+      summary: List heartbeat runs
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Heartbeat run history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HeartbeatRun"
+
+  /companies/{companyId}/heartbeat/runs/{runId}:
+    get:
+      operationId: getHeartbeatRun
+      tags: [heartbeat]
+      summary: Get heartbeat run with agent details
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: Run details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HeartbeatRunDetail"
+
+  # ── Swarms ──
+  /companies/{companyId}/swarms:
+    get:
+      operationId: listSwarms
+      tags: [swarms]
+      summary: List swarm runs
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      responses:
+        "200":
+          description: Swarm list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SwarmRun"
+    post:
+      operationId: launchSwarm
+      tags: [swarms]
+      summary: Launch a swarm
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LaunchSwarmInput"
+      responses:
+        "202":
+          description: Swarm launched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SwarmRun"
+
+  /companies/{companyId}/swarms/{swarmId}:
+    get:
+      operationId: getSwarm
+      tags: [swarms]
+      summary: Get swarm status
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/SwarmId"
+      responses:
+        "200":
+          description: Swarm details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SwarmRunDetail"
+
+  /companies/{companyId}/swarms/{swarmId}/cancel:
+    post:
+      operationId: cancelSwarm
+      tags: [swarms]
+      summary: Cancel a swarm
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/SwarmId"
+      responses:
+        "200":
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SwarmRun"
+
+  /companies/{companyId}/swarms/{swarmId}/messages:
+    get:
+      operationId: listSwarmMessages
+      tags: [swarms]
+      summary: List inter-agent messages
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/SwarmId"
+      responses:
+        "200":
+          description: Message list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SwarmMessage"
+
+  # ── Governance ──
+  /companies/{companyId}/governance:
+    get:
+      operationId: listGovernanceRequests
+      tags: [governance]
+      summary: List governance requests
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Request list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GovernanceRequest"
+
+  /companies/{companyId}/governance/{requestId}/approve:
+    post:
+      operationId: approveGovernanceRequest
+      tags: [governance]
+      summary: Approve a governance request
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GovernanceDecisionInput"
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GovernanceRequest"
+
+  /companies/{companyId}/governance/{requestId}/reject:
+    post:
+      operationId: rejectGovernanceRequest
+      tags: [governance]
+      summary: Reject a governance request
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GovernanceDecisionInput"
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GovernanceRequest"
+
+  # ── Tools ──
+  /tools:
+    get:
+      operationId: listTools
+      tags: [tools]
+      summary: List registered tools
+      responses:
+        "200":
+          description: Tool list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ToolDefinition"
+
+  /companies/{companyId}/agents/{agentId}/tools:
+    post:
+      operationId: grantTool
+      tags: [tools]
+      summary: Grant tool to agent
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/AgentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrantToolInput"
+      responses:
+        "200":
+          description: Granted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+    delete:
+      operationId: revokeTool
+      tags: [tools]
+      summary: Revoke tool from agent
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/AgentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrantToolInput"
+      responses:
+        "200":
+          description: Revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+
+  # ── Budget ──
+  /companies/{companyId}/budget:
+    get:
+      operationId: getBudgetSummary
+      tags: [budget]
+      summary: Get budget summary
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      responses:
+        "200":
+          description: Budget summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetSummary"
+
+  /companies/{companyId}/budget/alerts:
+    get:
+      operationId: listBudgetAlerts
+      tags: [budget]
+      summary: List budget alerts
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      responses:
+        "200":
+          description: Alert list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BudgetAlert"
+
+  /companies/{companyId}/budget/agents/{agentId}:
+    patch:
+      operationId: updateAgentBudget
+      tags: [budget]
+      summary: Override agent budget
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/AgentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBudgetInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+
+  # ── Traces ──
+  /companies/{companyId}/traces:
+    get:
+      operationId: listTraces
+      tags: [traces]
+      summary: List trace spans
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - name: agentId
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Trace list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ToolCallTrace"
+
+  /companies/{companyId}/traces/{traceId}:
+    get:
+      operationId: getTraceWaterfall
+      tags: [traces]
+      summary: Get trace waterfall
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/TraceId"
+      responses:
+        "200":
+          description: Trace waterfall
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ToolCallTrace"
+
+  # ── Memory ──
+  /companies/{companyId}/agents/{agentId}/memory:
+    get:
+      operationId: listMemoryEntries
+      tags: [memory]
+      summary: List agent memory entries
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/AgentId"
+        - name: category
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Memory entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MemoryEntry"
+    post:
+      operationId: createMemoryEntry
+      tags: [memory]
+      summary: Create memory entry
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+        - $ref: "#/components/parameters/AgentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMemoryInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryEntry"
+
+  # ── SSE Events ──
+  /companies/{companyId}/events:
+    get:
+      operationId: streamEvents
+      tags: [events]
+      summary: SSE event stream
+      parameters:
+        - $ref: "#/components/parameters/CompanyId"
+      responses:
+        "200":
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
 components:
+  parameters:
+    CompanyId:
+      name: companyId
+      in: path
+      required: true
+      schema:
+        type: string
+    AgentId:
+      name: agentId
+      in: path
+      required: true
+      schema:
+        type: string
+    GoalId:
+      name: goalId
+      in: path
+      required: true
+      schema:
+        type: string
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema:
+        type: string
+    RunId:
+      name: runId
+      in: path
+      required: true
+      schema:
+        type: string
+    SwarmId:
+      name: swarmId
+      in: path
+      required: true
+      schema:
+        type: string
+    RequestId:
+      name: requestId
+      in: path
+      required: true
+      schema:
+        type: string
+    TraceId:
+      name: traceId
+      in: path
+      required: true
+      schema:
+        type: string
+
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +891,818 @@ components:
       required:
         - status
 
+    # ── Company ──
+    Company:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        mission:
+          type: string
+        status:
+          type: string
+          enum: [active, paused, archived]
+        budgetMonthlyUsd:
+          type: number
+        budgetUsedUsd:
+          type: number
+        circuitBreaker:
+          type: string
+          enum: [closed, open, half_open]
+        settings:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, name, mission, status, budgetMonthlyUsd, budgetUsedUsd, circuitBreaker, createdAt, updatedAt]
+
+    CreateCompanyInput:
+      type: object
+      properties:
+        name:
+          type: string
+        mission:
+          type: string
+        budgetMonthlyUsd:
+          type: number
+        settings:
+          type: object
+      required: [name, mission]
+
+    UpdateCompanyInput:
+      type: object
+      properties:
+        name:
+          type: string
+        mission:
+          type: string
+        status:
+          type: string
+          enum: [active, paused, archived]
+        budgetMonthlyUsd:
+          type: number
+        circuitBreaker:
+          type: string
+          enum: [closed, open, half_open]
+        settings:
+          type: object
+
+    # ── Agent ──
+    Agent:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        level:
+          type: integer
+        title:
+          type: string
+        managerId:
+          type: string
+          nullable: true
+        model:
+          type: string
+        systemPrompt:
+          type: string
+          nullable: true
+        tools:
+          type: array
+          items:
+            type: string
+          nullable: true
+        capabilityToken:
+          type: object
+          nullable: true
+        budgetMonthlyUsd:
+          type: number
+        budgetUsedUsd:
+          type: number
+        status:
+          type: string
+          enum: [idle, thinking, executing, waiting_approval, error, circuit_open, terminated]
+        heartbeatIntervalSec:
+          type: integer
+        nextHeartbeatAt:
+          type: string
+          format: date-time
+          nullable: true
+        deskX:
+          type: integer
+          nullable: true
+        deskY:
+          type: integer
+          nullable: true
+        spriteKey:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, companyId, name, role, level, title, model, budgetMonthlyUsd, budgetUsedUsd, status, createdAt, updatedAt]
+
+    CreateAgentInput:
+      type: object
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+        level:
+          type: integer
+        title:
+          type: string
+        managerId:
+          type: string
+        model:
+          type: string
+        systemPrompt:
+          type: string
+        budgetMonthlyUsd:
+          type: number
+        heartbeatIntervalSec:
+          type: integer
+        deskX:
+          type: integer
+        deskY:
+          type: integer
+        spriteKey:
+          type: string
+      required: [name, role, level, title]
+
+    UpdateAgentInput:
+      type: object
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+        level:
+          type: integer
+        title:
+          type: string
+        managerId:
+          type: string
+        model:
+          type: string
+        systemPrompt:
+          type: string
+        status:
+          type: string
+          enum: [idle, thinking, executing, waiting_approval, error, circuit_open, terminated]
+        budgetMonthlyUsd:
+          type: number
+        heartbeatIntervalSec:
+          type: integer
+        deskX:
+          type: integer
+        deskY:
+          type: integer
+        spriteKey:
+          type: string
+
+    OrgChartNode:
+      type: object
+      properties:
+        agent:
+          $ref: "#/components/schemas/Agent"
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrgChartNode"
+      required: [agent, children]
+
+    # ── Goal ──
+    Goal:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        parentId:
+          type: string
+          nullable: true
+        assignedTo:
+          type: string
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [proposed, active, blocked, completed, cancelled]
+        priority:
+          type: integer
+        dueAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, companyId, title, status, priority, createdAt, updatedAt]
+
+    CreateGoalInput:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        parentId:
+          type: string
+        assignedTo:
+          type: string
+        priority:
+          type: integer
+        dueAt:
+          type: string
+          format: date-time
+      required: [title]
+
+    UpdateGoalInput:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [proposed, active, blocked, completed, cancelled]
+        assignedTo:
+          type: string
+        priority:
+          type: integer
+        dueAt:
+          type: string
+          format: date-time
+
+    GoalTreeNode:
+      type: object
+      properties:
+        goal:
+          $ref: "#/components/schemas/Goal"
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoalTreeNode"
+      required: [goal, children]
+
+    # ── Task ──
+    AgentTask:
+      type: object
+      properties:
+        id:
+          type: string
+        goalId:
+          type: string
+          nullable: true
+        companyId:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        claimedBy:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, claimed, in_progress, review, done, failed, cancelled]
+        version:
+          type: integer
+        result:
+          type: object
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, companyId, title, status, version, createdAt, updatedAt]
+
+    CreateTaskInput:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        goalId:
+          type: string
+      required: [title]
+
+    UpdateTaskInput:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [pending, claimed, in_progress, review, done, failed, cancelled]
+        result:
+          type: object
+
+    ClaimTaskInput:
+      type: object
+      properties:
+        agentId:
+          type: string
+        version:
+          type: integer
+      required: [agentId, version]
+
+    # ── Heartbeat ──
+    HeartbeatRun:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        trigger:
+          type: string
+          enum: [scheduled, manual, event]
+        status:
+          type: string
+          enum: [running, completed, partial_failure, failed]
+        agentsTotal:
+          type: integer
+          nullable: true
+        agentsSucceeded:
+          type: integer
+          nullable: true
+        agentsFailed:
+          type: integer
+          nullable: true
+        totalCostUsd:
+          type: number
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, companyId, trigger, status, startedAt]
+
+    HeartbeatAgentRun:
+      type: object
+      properties:
+        id:
+          type: string
+        heartbeatRunId:
+          type: string
+        agentId:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, succeeded, failed, skipped]
+        decision:
+          type: object
+          nullable: true
+        costUsd:
+          type: number
+          nullable: true
+        latencyMs:
+          type: integer
+          nullable: true
+        error:
+          type: string
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, heartbeatRunId, agentId, status]
+
+    HeartbeatRunDetail:
+      type: object
+      properties:
+        run:
+          $ref: "#/components/schemas/HeartbeatRun"
+        agentRuns:
+          type: array
+          items:
+            $ref: "#/components/schemas/HeartbeatAgentRun"
+      required: [run, agentRuns]
+
+    TriggerHeartbeatInput:
+      type: object
+      properties:
+        agentId:
+          type: string
+        trigger:
+          type: string
+          enum: [scheduled, manual, event]
+          default: manual
+        dryRun:
+          type: boolean
+          default: false
+
+    # ── Swarm ──
+    SwarmRun:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        goalId:
+          type: string
+          nullable: true
+        leaderAgentId:
+          type: string
+          nullable: true
+        taskDescription:
+          type: string
+        phase:
+          type: string
+          enum: [proposed, pending_approval, spawning, executing, synthesizing, completed, failed, dissolved, cancelled]
+        specialistRoles:
+          type: array
+          items:
+            type: object
+          nullable: true
+        synthesisResult:
+          type: object
+          nullable: true
+        totalCostUsd:
+          type: number
+          nullable: true
+        maxAgents:
+          type: integer
+        timeoutSec:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, companyId, taskDescription, phase, maxAgents, timeoutSec, createdAt]
+
+    SwarmRunDetail:
+      type: object
+      properties:
+        run:
+          $ref: "#/components/schemas/SwarmRun"
+        agents:
+          type: array
+          items:
+            $ref: "#/components/schemas/SwarmAgent"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/SwarmMessage"
+      required: [run, agents, messages]
+
+    SwarmAgent:
+      type: object
+      properties:
+        id:
+          type: string
+        swarmRunId:
+          type: string
+        role:
+          type: string
+        model:
+          type: string
+        systemPrompt:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [spawned, executing, completed, failed]
+        output:
+          type: object
+          nullable: true
+        costUsd:
+          type: number
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, swarmRunId, role, model, status, createdAt]
+
+    SwarmMessage:
+      type: object
+      properties:
+        id:
+          type: string
+        swarmRunId:
+          type: string
+        fromAgentId:
+          type: string
+        toAgentId:
+          type: string
+          nullable: true
+        messageType:
+          type: string
+          enum: [finding, question, dependency, partial_result, error]
+        content:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, swarmRunId, fromAgentId, messageType, content, createdAt]
+
+    LaunchSwarmInput:
+      type: object
+      properties:
+        taskDescription:
+          type: string
+        goalId:
+          type: string
+        leaderAgentId:
+          type: string
+        maxAgents:
+          type: integer
+          default: 5
+        timeoutSec:
+          type: integer
+          default: 300
+      required: [taskDescription]
+
+    # ── Governance ──
+    GovernanceRequest:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        requestingAgentId:
+          type: string
+          nullable: true
+        requestType:
+          type: string
+          enum: [hire, fire, budget_override, swarm_approval, escalation, tool_access, strategy_change]
+        description:
+          type: string
+        metadata:
+          type: object
+          nullable: true
+        status:
+          type: string
+          enum: [pending, approved, rejected, expired]
+        decidedBy:
+          type: string
+          nullable: true
+        decidedAt:
+          type: string
+          format: date-time
+          nullable: true
+        decisionNote:
+          type: string
+          nullable: true
+        estimatedCostUsd:
+          type: number
+          nullable: true
+        ttlSeconds:
+          type: integer
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, companyId, requestType, description, status, ttlSeconds, createdAt, updatedAt]
+
+    GovernanceDecisionInput:
+      type: object
+      properties:
+        note:
+          type: string
+
+    # ── Tools ──
+    ToolDefinition:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        inputSchema:
+          type: object
+        riskLevel:
+          type: string
+          enum: [low, medium, high]
+        requiredCapabilities:
+          type: array
+          items:
+            type: string
+      required: [id, name, description, riskLevel]
+
+    GrantToolInput:
+      type: object
+      properties:
+        toolId:
+          type: string
+      required: [toolId]
+
+    # ── Budget ──
+    BudgetSummary:
+      type: object
+      properties:
+        companyBudgetMonthly:
+          type: number
+        companyBudgetUsed:
+          type: number
+        circuitBreaker:
+          type: string
+          enum: [closed, open, half_open]
+        agents:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentBudget"
+      required: [companyBudgetMonthly, companyBudgetUsed, circuitBreaker, agents]
+
+    AgentBudget:
+      type: object
+      properties:
+        agentId:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        budgetMonthly:
+          type: number
+        budgetUsed:
+          type: number
+        status:
+          type: string
+      required: [agentId, name, role, budgetMonthly, budgetUsed, status]
+
+    BudgetAlert:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        agentId:
+          type: string
+          nullable: true
+        alertType:
+          type: string
+          enum: [soft_limit, hard_cap, circuit_breaker, projected_overrun]
+        message:
+          type: string
+        thresholdUsd:
+          type: number
+          nullable: true
+        actualUsd:
+          type: number
+          nullable: true
+        resolved:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, companyId, alertType, message, resolved, createdAt]
+
+    UpdateBudgetInput:
+      type: object
+      properties:
+        budgetMonthlyUsd:
+          type: number
+      required: [budgetMonthlyUsd]
+
+    # ── Traces ──
+    ToolCallTrace:
+      type: object
+      properties:
+        id:
+          type: string
+        agentId:
+          type: string
+        companyId:
+          type: string
+        toolName:
+          type: string
+        input:
+          type: object
+          nullable: true
+        output:
+          type: object
+          nullable: true
+        model:
+          type: string
+          nullable: true
+        inputTokens:
+          type: integer
+          nullable: true
+        outputTokens:
+          type: integer
+          nullable: true
+        costUsd:
+          type: number
+          nullable: true
+        latencyMs:
+          type: integer
+          nullable: true
+        traceId:
+          type: string
+          nullable: true
+        spanId:
+          type: string
+          nullable: true
+        parentSpanId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, agentId, companyId, toolName, createdAt]
+
+    # ── Memory ──
+    MemoryEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        agentId:
+          type: string
+        companyId:
+          type: string
+        category:
+          type: string
+          enum: [fact, preference, decision, learning, context, relationship]
+        key:
+          type: string
+        content:
+          type: string
+        metadata:
+          type: object
+          nullable: true
+        importance:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, agentId, companyId, category, key, content, importance, createdAt, updatedAt]
+
+    CreateMemoryInput:
+      type: object
+      properties:
+        category:
+          type: string
+          enum: [fact, preference, decision, learning, context, relationship]
+        key:
+          type: string
+        content:
+          type: string
+        importance:
+          type: integer
+        metadata:
+          type: object
+      required: [category, key, content]
