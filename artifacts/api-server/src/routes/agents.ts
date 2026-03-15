@@ -1,7 +1,8 @@
 import { Router } from "express";
-import { eq, and } from "drizzle-orm";
-import { db, agentsTable, insertAgentSchema, type Agent } from "@workspace/db";
+import { eq, and, desc, isNull } from "drizzle-orm";
+import { db, agentsTable, capabilityTokensTable, insertAgentSchema, type Agent } from "@workspace/db";
 import { ApiError } from "../middlewares/error-handler.js";
+import { governanceService } from "../services/governanceService.js";
 
 const router = Router();
 
