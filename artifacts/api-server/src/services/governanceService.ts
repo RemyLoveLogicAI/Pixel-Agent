@@ -158,8 +158,14 @@ export class GovernanceService {
                 break;
 
             case "swarm_approval":
-                // The swarm will be waiting for approval - resume execution
-                // This would integrate with the swarm engine
+                // Advance the swarm from `proposed` → full lifecycle
+                if (metadata?.swarmId) {
+                    const { swarmEngine } = await import("./swarmEngine.js");
+                    await swarmEngine.approveSwarm(metadata.swarmId as string, request.decidedBy ?? "human");
+                    swarmEngine.runSwarm(metadata.swarmId as string).catch((err: unknown) =>
+                        console.error(`[Governance] swarm ${metadata.swarmId} run error:`, err)
+                    );
+                }
                 break;
 
             default:
