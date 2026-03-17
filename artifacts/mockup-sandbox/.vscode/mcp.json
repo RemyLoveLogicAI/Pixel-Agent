@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "intraview": {
+      "url": "http://localhost:42069/mcp",
+      "type": "http"
+    }
+  },
+  "inputs": []
+}

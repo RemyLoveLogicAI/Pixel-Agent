@@ -1,0 +1,10 @@
+.copilot-specs-cache/
+.agentsmithy
+
+# NexySync agent key
+.nexysync/
+
+
+#Ignore vscode AI rules
+.github/instructions/codacy.instructions.md
+.intraview/

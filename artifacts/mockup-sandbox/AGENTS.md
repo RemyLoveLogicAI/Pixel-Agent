@@ -1,0 +1,26 @@
+# Claude Code Instructions
+
+When code files contain `// linggen anchor: <path>` comments, read the referenced anchor file under `.linggen/anchor/` for context.
+
+<!-- intraview-workspace-start[v0.8.5] -->
+## Intraview Tour Builder
+
+The Intraview extension enables interactive code tours and contextual feedback collection.
+
+### Use Cases
+
+- **Code Tours**: Create guided walkthroughs of codebases for onboarding, code review, or learning
+- **Alignment & Feedback**: Capture structured feedback on code or architectural plans
+- **Batched Audits**: Collect and export user feedback across multiple files for review sessions
+
+### Feedback Collection
+
+Users can provide feedback in two ways:
+
+1. **Tour Feedback**: Inline feedback during code tours (automatically captured)
+2. **Standalone Feedback**: Select code and use "Intraview: Add Feedback" context menu
+   - **Keyboard**: CMD+H (Mac) or CTRL+H (Windows/Linux)
+   - **Context Menu**: Right-click selected code → "Intraview: Add Feedback"
+
+All feedback is collected with file context (path, line numbers, code snippet) and can be exported for review.
+<!-- intraview-workspace-end -->

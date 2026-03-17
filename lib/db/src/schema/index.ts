@@ -13,3 +13,8 @@ export * from "./budget-alerts";
 export * from "./memory-entries";
 export * from "./capability-tokens";
 export * from "./heartbeat-dead-letters";
+export * from "./workspaces";
+export * from "./workspace-snapshots";
+export * from "./workflow-runs";
+export * from "./workflow-steps";
+export * from "./mcp-connections";

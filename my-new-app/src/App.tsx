@@ -1,95 +1,95 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState, useEffect } from "react";
+import "./App.css";
+
+// Types for our domain
+interface Company {
+  id: string;
+  name: string;
+  mission: string;
+  status: "active" | "paused" | "archived";
+  budgetMonthlyUsd: number;
+  budgetUsedUsd: number;
+  circuitBreaker: "closed" | "open" | "half_open";
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Agent {
+  id: string;
+  companyId: string;
+  name: string;
+  role: string;
+  level: number;
+  title: string;
+  managerId: string | null;
+  model: string;
+  status: "idle" | "thinking" | "executing" | "waiting_approval" | "error" | "circuit_open" | "terminated";
+  budgetMonthlyUsd: number;
+  budgetUsedUsd: number;
+  heartbeatIntervalSec: number;
+  nextHeartbeatAt: string | null;
+  deskX: number | null;
+  deskY: number | null;
+  spriteKey: string | null;
+}
+
+interface Goal {
+  id: string;
+  companyId: string;
+  parentId: string | null;
+  assignedTo: string | null;
+  title: string;
+  description: string | null;
+  status: "proposed" | "active" | "blocked" | "completed" | "cancelled";
+  priority: number;
+  dueAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Task {
+  id: string;
+  companyId: string;
+  goalId: string | null;
+  title: string;
+  description: string | null;
+  claimedBy: string | null;
+  status: "pending" | "claimed" | "in_progress" | "review" | "done" | "failed" | "cancelled";
+  version: number;
+  result: unknown;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// SSE Event types
+type SSEEvent =
+  | { type: "connected"; data: { companyId: string } }
+  | { type: "agent.state_change"; agent_id: string; from: string; to: string }
+  | { type: "agent.heartbeat.start"; agent_id: string; heartbeat_run_id: string }
+  | { type: "agent.heartbeat.complete"; agent_id: string; result: unknown }
+  | { type: "task.claimed"; task_id: string; agent_id: string }
+  | { type: "task.completed"; task_id: string; result: unknown }
+  | { type: "governance.new_request"; request: unknown }
+  | { type: "budget.alert"; alert: unknown };
+
+const API_BASE = "/api";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [view, setView] = useState<string>("dashboard");
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [sseConnected, setSseConnected] = useState(false);
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+  // Fetch companies on mount
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
                 >
                   <use href="/icons.svg#x-icon"></use>
                 </svg>

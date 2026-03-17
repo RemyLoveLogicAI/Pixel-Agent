@@ -1,0 +1,18 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    "dsznajder.es7-react-js-snippets",
+    "christian-kohler.path-intellisense",
+    "formulahendry.auto-rename-tag",
+    "naumovs.color-highlight",
+    "csstools.postcss"
+  ],
+  "unwantedRecommendations": [
+    "nicedoc.sfcc",
+    "nicedoc.sfcc-debugger",
+    "nicedoc.sfcc-deploy",
+    "nicedoc.prophet"
+  ]
+}

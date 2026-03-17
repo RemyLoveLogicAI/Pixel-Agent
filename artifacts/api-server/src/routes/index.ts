@@ -12,6 +12,10 @@ import budgetRouter from "./budget.js";
 import tracesRouter from "./traces.js";
 import memoryRouter from "./memory.js";
 import eventsRouter from "./events.js";
+import metricsRouter from "./metrics.js";
+import workspacesRouter from "./workspaces.js";
+import workflowsRouter from "./workflows.js";
+import clipboardRouter from "./clipboard.js";
 
 const router: IRouter = Router();
 
@@ -28,5 +32,9 @@ router.use(budgetRouter);
 router.use(tracesRouter);
 router.use(memoryRouter);
 router.use(eventsRouter);
+router.use(metricsRouter);
+router.use(workspacesRouter);
+router.use(workflowsRouter);
+router.use(clipboardRouter);
 
 export default router;

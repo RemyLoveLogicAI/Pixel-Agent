@@ -1,0 +1,61 @@
+version: "3.9"
+
+services:
+  # --------------------------------------------------------------------------
+  # PostgreSQL 16
+  # --------------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pixel
+      POSTGRES_PASSWORD: pixel
+      POSTGRES_DB: pixel_agent
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pixel -d pixel_agent"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  # --------------------------------------------------------------------------
+  # Express 5 API Server (dev mode with hot reload via tsx)
+  # --------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: deps          # only install deps; we mount source for hot reload
+    command: ["pnpm", "--filter", "@workspace/api-server", "dev"]
+    working_dir: /app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: "3000"
+      DATABASE_URL: postgres://pixel:pixel@db:5432/pixel_agent
+    volumes:
+      # Mount source code for hot reload — node_modules stay from the image
+      - ./artifacts/api-server/src:/app/artifacts/api-server/src
+      - ./lib:/app/lib
+      - ./tsconfig.base.json:/app/tsconfig.base.json
+    networks:
+      - internal
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  internal:
+    driver: bridge

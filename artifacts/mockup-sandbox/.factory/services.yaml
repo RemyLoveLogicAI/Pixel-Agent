@@ -1,0 +1,36 @@
+commands:
+  install: pnpm install
+  typecheck: pnpm typecheck
+  build: pnpm build
+  test: pnpm test --run --maxWorkers=3
+  lint: pnpm lint
+  dev: pnpm dev
+
+services:
+  paperclip:
+    start: npx paperclipai start --background
+    stop: npx paperclipai stop
+    healthcheck: curl -sf http://localhost:3100/api/health
+    port: 3100
+    depends_on: []
+
+  api:
+    start: PORT=3201 pnpm run dev:api
+    stop: lsof -ti :3201 | xargs kill
+    healthcheck: curl -sf http://localhost:3201/api/health
+    port: 3201
+    depends_on: [paperclip]
+
+  websocket:
+    start: PORT=3202 pnpm run dev:ws
+    stop: lsof -ti :3202 | xargs kill
+    healthcheck: "curl -sf http://localhost:3202/health || true"
+    port: 3202
+    depends_on: [api]
+
+  web:
+    start: PORT=3200 pnpm dev
+    stop: lsof -ti :3200 | xargs kill
+    healthcheck: curl -sf http://localhost:3200
+    port: 3200
+    depends_on: [api, websocket]
