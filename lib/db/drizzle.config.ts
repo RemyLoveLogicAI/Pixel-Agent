@@ -1,14 +1,15 @@
 import { defineConfig } from "drizzle-kit";
 import path from "path";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL, ensure the database is provisioned");
-}
+// NOTE: We keep `drizzle-kit generate` usable without a live DB.
+// `drizzle-kit push` still requires a real DATABASE_URL at runtime.
+const databaseUrl =
+  process.env.DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/pixel_agent";
 
 export default defineConfig({
   schema: path.join(__dirname, "./src/schema/index.ts"),
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL,
+    url: databaseUrl,
   },
 });

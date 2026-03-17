@@ -2,6 +2,8 @@ import { Router } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, governanceRequestsTable, insertGovernanceRequestSchema } from "@workspace/db";
 import { ApiError } from "../middlewares/error-handler.js";
+import { governanceService } from "../services/governanceService.js";
+import { broadcastEvent } from "./events.js";
 
 const router = Router();
 
@@ -65,17 +67,17 @@ router.post(
         return next(new ApiError(409, `Request already ${existing.status}`));
       }
 
-      const [updated] = await db
-        .update(governanceRequestsTable)
-        .set({
-          status: "approved",
-          decidedAt: new Date(),
-          decidedBy: req.body?.decidedBy ?? "human",
-          decisionNote: req.body?.note ?? null,
-          updatedAt: new Date(),
-        })
-        .where(eq(governanceRequestsTable.id, req.params.requestId))
-        .returning();
+      const updated = await governanceService.approveRequest(
+        req.params.requestId,
+        req.body?.decidedBy ?? "human",
+        req.body?.note,
+      );
+
+      broadcastEvent(req.params.companyId, {
+        type: "governance.decided",
+        data: { requestId: updated.id, status: updated.status, requestType: updated.requestType },
+      });
+
       res.json(updated);
     } catch (err) {
       next(err);
@@ -101,17 +103,17 @@ router.post(
         return next(new ApiError(409, `Request already ${existing.status}`));
       }
 
-      const [updated] = await db
-        .update(governanceRequestsTable)
-        .set({
-          status: "rejected",
-          decidedAt: new Date(),
-          decidedBy: req.body?.decidedBy ?? "human",
-          decisionNote: req.body?.note ?? null,
-          updatedAt: new Date(),
-        })
-        .where(eq(governanceRequestsTable.id, req.params.requestId))
-        .returning();
+      const updated = await governanceService.rejectRequest(
+        req.params.requestId,
+        req.body?.decidedBy ?? "human",
+        req.body?.note,
+      );
+
+      broadcastEvent(req.params.companyId, {
+        type: "governance.decided",
+        data: { requestId: updated.id, status: updated.status, requestType: updated.requestType },
+      });
+
       res.json(updated);
     } catch (err) {
       next(err);
