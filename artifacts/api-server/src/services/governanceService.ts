@@ -1,5 +1,5 @@
 import { db, governanceRequestsTable, agentsTable, companiesTable, capabilityTokensTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, lte, isNotNull } from "drizzle-orm";
 import { capabilityTokenService } from "./capabilityTokenService.js";
 import { hierarchyService } from "./hierarchyService.js";
 
@@ -200,10 +200,10 @@ export class GovernanceService {
     }
 
     /**
-     * Expire old pending requests
+     * Expire old pending requests whose TTL has elapsed.
      */
     async expirePendingRequests(): Promise<number> {
-        const now = new Date().toISOString();
+        const now = new Date();
 
         const result = await db
             .update(governanceRequestsTable)
@@ -214,9 +214,10 @@ export class GovernanceService {
             .where(
                 and(
                     eq(governanceRequestsTable.status, "pending"),
+                    isNotNull(governanceRequestsTable.expiresAt),
+                    lte(governanceRequestsTable.expiresAt, now),
                 )
             )
-            // Note: In production, you'd add a proper where clause for expiresAt
             .returning();
 
         return result.length;

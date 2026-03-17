@@ -5,6 +5,12 @@ import { ApiError } from "../middlewares/error-handler.js";
 
 const router = Router();
 
+// Fields that callers are allowed to update on a company.
+// Excludes id, budget fields (managed via /budget), circuitBreaker, and timestamps.
+const patchCompanySchema = insertCompanySchema
+  .pick({ name: true, mission: true, status: true, settings: true })
+  .partial();
+
 router.get("/companies", async (_req, res, next) => {
   try {
     const companies = await db.select().from(companiesTable).orderBy(companiesTable.createdAt);
@@ -51,9 +57,14 @@ router.patch("/companies/:companyId", async (req, res, next) => {
       .where(eq(companiesTable.id, req.params.companyId));
     if (!existing) return next(new ApiError(404, "Company not found"));
 
+    const parsed = patchCompanySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return next(new ApiError(400, parsed.error.message));
+    }
+
     const [updated] = await db
       .update(companiesTable)
-      .set({ ...req.body, updatedAt: new Date() })
+      .set({ ...parsed.data, updatedAt: new Date() })
       .where(eq(companiesTable.id, req.params.companyId))
       .returning();
     res.json(updated);

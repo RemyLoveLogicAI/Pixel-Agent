@@ -7,6 +7,27 @@ import { hierarchyService } from "../services/hierarchyService.js";
 
 const router = Router();
 
+// Fields that callers are allowed to update on an agent.
+// Excludes id, companyId, capabilityToken, budget fields, delegation settings, and timestamps.
+const patchAgentSchema = insertAgentSchema
+  .pick({
+    name: true,
+    role: true,
+    level: true,
+    title: true,
+    managerId: true,
+    model: true,
+    systemPrompt: true,
+    tools: true,
+    status: true,
+    heartbeatIntervalSec: true,
+    nextHeartbeatAt: true,
+    deskX: true,
+    deskY: true,
+    spriteKey: true,
+  })
+  .partial();
+
 router.get("/companies/:companyId/agents", async (req, res, next) => {
   try {
     const agents = await db
@@ -89,9 +110,14 @@ router.patch("/companies/:companyId/agents/:agentId", async (req, res, next) => 
       );
     if (!existing) return next(new ApiError(404, "Agent not found"));
 
+    const parsed = patchAgentSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return next(new ApiError(400, parsed.error.message));
+    }
+
     const [updated] = await db
       .update(agentsTable)
-      .set({ ...req.body, updatedAt: new Date() })
+      .set({ ...parsed.data, updatedAt: new Date() })
       .where(eq(agentsTable.id, req.params.agentId))
       .returning();
     res.json(updated);

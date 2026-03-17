@@ -74,6 +74,13 @@ router.patch("/companies/:companyId/budget/agents/:agentId", async (req, res, ne
       budgetUsedUsd?: number;
     };
 
+    if (budgetMonthlyUsd !== undefined && (typeof budgetMonthlyUsd !== "number" || budgetMonthlyUsd < 0)) {
+      return next(new ApiError(400, "budgetMonthlyUsd must be a non-negative number"));
+    }
+    if (budgetUsedUsd !== undefined && (typeof budgetUsedUsd !== "number" || budgetUsedUsd < 0)) {
+      return next(new ApiError(400, "budgetUsedUsd must be a non-negative number"));
+    }
+
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (budgetMonthlyUsd !== undefined) updates.budgetMonthlyUsd = budgetMonthlyUsd;
     if (budgetUsedUsd !== undefined) updates.budgetUsedUsd = budgetUsedUsd;

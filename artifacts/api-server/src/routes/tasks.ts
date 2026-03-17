@@ -5,6 +5,22 @@ import { ApiError } from "../middlewares/error-handler.js";
 
 const router = Router();
 
+const TASK_STATUSES = [
+  "pending",
+  "claimed",
+  "in_progress",
+  "review",
+  "done",
+  "failed",
+  "cancelled",
+] as const;
+
+// Fields that callers are allowed to update on a task.
+// Excludes id, companyId, goalId, title, description, version (auto-incremented), claimedBy, and timestamps.
+const patchTaskSchema = insertAgentTaskSchema
+  .pick({ status: true, result: true })
+  .partial();
+
 router.get("/companies/:companyId/tasks", async (req, res, next) => {
   try {
     const { companyId } = req.params;
@@ -12,7 +28,15 @@ router.get("/companies/:companyId/tasks", async (req, res, next) => {
 
     const conditions = [eq(agentTasksTable.companyId, companyId)];
     if (status && typeof status === "string") {
-      conditions.push(eq(agentTasksTable.status, status as any));
+      if (!TASK_STATUSES.includes(status as (typeof TASK_STATUSES)[number])) {
+        return next(
+          new ApiError(
+            400,
+            `Invalid status "${status}". Allowed values: ${TASK_STATUSES.join(", ")}`,
+          ),
+        );
+      }
+      conditions.push(eq(agentTasksTable.status, status as (typeof TASK_STATUSES)[number]));
     }
     if (agentId && typeof agentId === "string") {
       conditions.push(eq(agentTasksTable.claimedBy, agentId));
@@ -63,9 +87,14 @@ router.patch("/companies/:companyId/tasks/:taskId", async (req, res, next) => {
       );
     if (!existing) return next(new ApiError(404, "Task not found"));
 
+    const parsed = patchTaskSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return next(new ApiError(400, parsed.error.message));
+    }
+
     const [updated] = await db
       .update(agentTasksTable)
-      .set({ ...req.body, version: existing.version + 1, updatedAt: new Date() })
+      .set({ ...parsed.data, version: existing.version + 1, updatedAt: new Date() })
       .where(eq(agentTasksTable.id, req.params.taskId))
       .returning();
     res.json(updated);
