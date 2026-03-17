@@ -13,6 +13,14 @@ import { AgentPool } from './agentPool.js';
 import { synthesisService } from './synthesisService.js';
 import { swarmMessageBus } from './swarmMessageBus.js';
 import { broadcastEvent } from '../routes/events.js';
+import {
+    registry,
+    swarmProposed,
+    swarmCompleted,
+    swarmAgentsExecuted,
+    swarmDuration,
+    swarmCostUsd,
+} from './metrics.js';
 
 type SwarmRow = typeof swarmRunsTable.$inferSelect;
 type SwarmAgentRow = typeof swarmAgentsTable.$inferSelect;
@@ -98,6 +106,8 @@ export class SwarmEngine {
             });
         }
 
+        registry.inc(swarmProposed);
+
         return { swarmId, phase: swarm.phase, estimatedCostUsd, needsApproval };
     }
 
@@ -129,13 +139,18 @@ export class SwarmEngine {
      * Runs async — callers should return 202 and let this run in the background.
      */
     async runSwarm(swarmId: string): Promise<void> {
+        const startMs = Date.now();
         try {
             await this.spawnSwarm(swarmId);
             await this.executeSwarm(swarmId);
             await this.synthesizeSwarm(swarmId);
             await this.dissolveSwarm(swarmId);
+            registry.inc(swarmCompleted, { phase: 'completed' });
         } catch (err) {
+            registry.inc(swarmCompleted, { phase: 'failed' });
             await this.failSwarm(swarmId, err instanceof Error ? err.message : String(err));
+        } finally {
+            registry.observe(swarmDuration, {}, (Date.now() - startMs) / 1000);
         }
     }
 
@@ -250,11 +265,16 @@ export class SwarmEngine {
                 .update(swarmAgentsTable)
                 .set({ status: 'completed', output, costUsd, completedAt: new Date() })
                 .where(eq(swarmAgentsTable.id, agent.id));
+
+            registry.inc(swarmAgentsExecuted, { status: 'completed', role: agent.role });
+            registry.inc(swarmCostUsd, {}, costUsd);
         } catch (err) {
             await db
                 .update(swarmAgentsTable)
                 .set({ status: 'failed', completedAt: new Date() })
                 .where(eq(swarmAgentsTable.id, agent.id));
+
+            registry.inc(swarmAgentsExecuted, { status: 'failed', role: agent.role });
         }
     }
 

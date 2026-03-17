@@ -12,6 +12,7 @@ import budgetRouter from "./budget.js";
 import tracesRouter from "./traces.js";
 import memoryRouter from "./memory.js";
 import eventsRouter from "./events.js";
+import metricsRouter from "./metrics.js";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(budgetRouter);
 router.use(tracesRouter);
 router.use(memoryRouter);
 router.use(eventsRouter);
+router.use(metricsRouter);
 
 export default router;
