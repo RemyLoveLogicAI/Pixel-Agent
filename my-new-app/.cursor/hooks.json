@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeSubmitPrompt": [
+      {
+        "command": "/Users/lovelogic/.antigravity/extensions/hiveline.hiveline-2.2.3-universal/scripts/trigger_before_submit_hook.sh",
+        "args": [
+          "${workspaceFolder}"
+        ]
+      }
+    ],
+    "afterAgentResponse": [
+      {
+        "command": "/Users/lovelogic/.antigravity/extensions/hiveline.hiveline-2.2.3-universal/scripts/trigger_after_agent_response_hook.sh",
+        "args": [
+          "${workspaceFolder}"
+        ]
+      }
+    ],
+    "stop": [
+      {
+        "command": "/Users/lovelogic/.antigravity/extensions/hiveline.hiveline-2.2.3-universal/scripts/trigger_stop_hook.sh",
+        "args": [
+          "${workspaceFolder}"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,989 @@
+# Autonomous Pixel Company Platform — Enhanced Specification v2
+
+> **Codename:** `company-hq` | **Brand Layer:** AgentClipboard (consumer) / SwarmDocket (engine)
+> **Stack:** TypeScript monorepo · Hono on Cloudflare Workers · Drizzle ORM · SQLite (D1) / Postgres · React + Canvas · SSE + WebSocket
+
+-----
+
+## 0. What Changed from v1
+
+|Area               |v1 (Replit Plan)        |v2 (This Spec)                                                                                                                    |Why                                                                        |
+|-------------------|------------------------|----------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------|
+|**Runtime**        |Implied Node/Express    |Hono on Cloudflare Workers (edge-native) with local-dev fallback                                                                  |Aligns with HappierCoder’s Cloudflare Agents strategy; sub-50ms cold starts|
+|**Database**       |Generic “push schema”   |Drizzle ORM + D1 (edge) or Postgres (local), explicit migration system                                                            |Type-safe schema, zero ORM overhead at edge, portable                      |
+|**Agent execution**|Promise.all fire-all    |Structured concurrency: agent pool with backpressure, circuit breakers, dead-letter queue                                         |Promise.all is naive — no error isolation, no backpressure, no retry       |
+|**Swarm model**    |“Spawn N specialists”   |Formal swarm lifecycle: Propose → Approve → Spawn → Heartbeat → Synthesize → Dissolve, with swarm memory and inter-agent messaging|Original had no lifecycle management or inter-agent communication          |
+|**Hierarchy**      |Flat delegation         |Full chain-of-command with *capability tokens* (from AgentOS governance kernel)                                                   |Prevents privilege escalation; auditable delegation                        |
+|**Cost control**   |Per-agent monthly budget|3-tier budget: per-call soft limit → per-agent hard cap → company-wide circuit breaker                                            |Single budget layer is insufficient for runaway swarms                     |
+|**CLI**            |Commander-based         |Commander + Ink (React for CLI) for rich TUI; `company-hq watch` as persistent dashboard                                          |ASCII tables are 2019; Ink gives live-updating terminal UI                 |
+|**Pixel frontend** |CSS keyframes           |HTML Canvas engine from PixelHQ ULTRA skill (proper sprite sheets, tile layers, parallax)                                         |CSS animations can’t do real sprite work at scale                          |
+|**Observability**  |“Ticket log”            |OpenTelemetry-compatible trace spans; every LLM call is a span with cost, latency, tokens                                         |Real observability, not just a log table                                   |
+|**Security**       |Not addressed           |Capability tokens, prompt injection guardrails, output sandboxing, governance approval gates                                      |This is an autonomous system — security is existential                     |
+|**Testing**        |Not addressed           |Contract tests for API, property tests for scheduler, visual regression for pixel canvas                                          |Untested autonomous systems are liabilities                                |
+|**Plugin system**  |Not addressed           |Tool registry with capability contracts; agents can only use tools granted by their role                                          |Extensibility without anarchy                                              |
+
+-----
+
+## 1. Requirements
+
+### 1.1 Functional
+
+- **Company lifecycle:** Create, configure, pause, resume, archive companies
+- **Agent CRUD:** Hire, fire, promote, demote, reassign agents within a hierarchy
+- **Goal decomposition:** CEO receives high-level goals; system decomposes into sub-goals cascading down the org tree
+- **Parallel heartbeat:** Scheduler fires all due agents concurrently with structured concurrency (not bare Promise.all)
+- **Swarm orchestration:** Dynamic specialist fleets with full lifecycle, inter-agent messaging, and synthesis
+- **Governance:** Board (user) approves/rejects escalations, hires above threshold, budget overrides
+- **Tool system:** Agents can use registered tools (web search, code execution, file I/O, draft comms) scoped by role
+- **Memory:** Per-agent short-term (context window) + long-term (vector store or structured KV) memory
+- **CLI:** First-class terminal interface for all operations
+- **Pixel visualization:** Real-time animated office canvas showing agent states
+- **Cost tracking:** Per-call, per-agent, per-company with hard stops and alerts
+
+### 1.2 Non-Functional
+
+- **Latency:** Agent heartbeat initiation < 200ms; SSE event delivery < 500ms
+- **Concurrency:** Support 50 simultaneous agent executions per company
+- **Cost ceiling:** Hard circuit-breaker at company budget; no silent overruns
+- **Portability:** Runs on Cloudflare Workers (prod) or local Node (dev) with same codebase
+- **Auditability:** Every LLM call traced with input hash, output hash, cost, latency, model, tokens
+- **Resilience:** Agent crash doesn’t cascade; failed agents enter `error` state, not `crashed-the-whole-system` state
+
+-----
+
+## 2. Architecture
+
+### 2.1 High-Level System Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        USER LAYER                                │
+│  ┌──────────┐  ┌──────────────┐  ┌─────────────────────────┐   │
+│  │   CLI    │  │  Pixel Web   │  │   Governance Panel      │   │
+│  │(Ink TUI) │  │  (React +    │  │   (approve/reject/      │   │
+│  │          │  │   Canvas)    │  │    budget overrides)     │   │
+│  └────┬─────┘  └──────┬───────┘  └───────────┬─────────────┘   │
+│       │               │                       │                  │
+│       └───────────────┼───────────────────────┘                  │
+│                       │ HTTP + SSE + WebSocket                   │
+└───────────────────────┼──────────────────────────────────────────┘
+                        │
+┌───────────────────────┼──────────────────────────────────────────┐
+│                   API GATEWAY                                     │
+│  ┌────────────────────┴─────────────────────────────────────┐    │
+│  │  Hono Router (Cloudflare Worker or Node)                  │    │
+│  │  ├─ /api/companies     (CRUD)                             │    │
+│  │  ├─ /api/agents        (CRUD + hierarchy)                 │    │
+│  │  ├─ /api/goals         (hierarchical CRUD)                │    │
+│  │  ├─ /api/heartbeat     (trigger parallel cycle)           │    │
+│  │  ├─ /api/swarms        (launch, status, cancel)           │    │
+│  │  ├─ /api/governance    (pending, approve, reject)         │    │
+│  │  ├─ /api/tools         (registry, grants)                 │    │
+│  │  ├─ /api/budget        (summary, alerts, overrides)       │    │
+│  │  ├─ /api/events        (SSE stream)                       │    │
+│  │  └─ /api/traces        (OpenTelemetry-compatible spans)   │    │
+│  └──────────────────────────────────────────────────────────┘    │
+└──────────────────────────────────────────────────────────────────┘
+                        │
+┌───────────────────────┼──────────────────────────────────────────┐
+│                 ORCHESTRATION LAYER                                │
+│                                                                    │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐    │
+│  │  Heartbeat   │  │   Swarm      │  │  Governance          │    │
+│  │  Scheduler   │  │   Engine     │  │  Gate                │    │
+│  │              │  │              │  │                      │    │
+│  │  • Cron/     │  │  • Propose → │  │  • Capability token  │    │
+│  │    Durable   │  │    Spawn →   │  │    validation        │    │
+│  │    Object    │  │    Execute → │  │  • Escalation queue  │    │
+│  │  • Agent     │  │    Synth →   │  │  • Approval workflow │    │
+│  │    pool      │  │    Dissolve  │  │  • Audit log         │    │
+│  │  • Circuit   │  │  • Inter-    │  │                      │    │
+│  │    breaker   │  │    agent msg │  │                      │    │
+│  └──────┬───────┘  └──────┬───────┘  └──────────┬───────────┘    │
+│         │                 │                      │                │
+│         └─────────────────┼──────────────────────┘                │
+│                           │                                       │
+│  ┌────────────────────────┴─────────────────────────────────┐    │
+│  │              Agent Execution Runtime                       │    │
+│  │  • LLM adapter (OpenAI, Anthropic, local)                 │    │
+│  │  • Tool executor (sandboxed)                              │    │
+│  │  • Memory manager (short-term + long-term)                │    │
+│  │  • Cost accumulator (per-call metering)                   │    │
+│  │  • Trace emitter (OpenTelemetry spans)                    │    │
+│  └──────────────────────────────────────────────────────────┘    │
+└──────────────────────────────────────────────────────────────────┘
+                        │
+┌───────────────────────┼──────────────────────────────────────────┐
+│                   DATA LAYER                                      │
+│  ┌──────────┐  ┌──────────────┐  ┌──────────────────────┐       │
+│  │  D1/     │  │  KV Store    │  │  Durable Objects     │       │
+│  │  Postgres │  │  (agent      │  │  (agent state        │       │
+│  │  (schema) │  │   memory,    │  │   machines,          │       │
+│  │           │  │   session)   │  │   swarm coordinators)│       │
+│  └──────────┘  └──────────────┘  └──────────────────────┘       │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### 2.2 Component Responsibilities
+
+#### Heartbeat Scheduler
+
+- **Not** bare `Promise.all`. Uses a **structured concurrency pool** with configurable max parallelism.
+- Each agent execution is wrapped in a **circuit breaker** (3 failures → agent enters `circuit_open` state for cooldown).
+- **Dead-letter queue:** Failed agent runs are logged with full context for manual retry or governance review.
+- **Backpressure:** If the pool is saturated, new heartbeats queue rather than spawn unbounded.
+
+#### Swarm Engine (5-Phase Lifecycle)
+
+```
+Phase 1: PROPOSE    — Swarm leader analyzes goal, proposes N specialist roles
+Phase 2: APPROVE    — If swarm cost estimate > threshold, requires governance approval
+Phase 3: SPAWN      — Ephemeral agents created with scoped prompts, tools, and memory slices
+Phase 4: EXECUTE    — Parallel execution with inter-agent message bus (agents can share intermediate results)
+Phase 5: SYNTHESIZE — Leader collects all outputs, produces merged result
+Phase 6: DISSOLVE   — Ephemeral agents terminated, memory archived, cost finalized
+```
+
+#### Governance Gate
+
+- Every action that exceeds an agent’s **capability token** scope triggers a governance request.
+- Capability tokens are role-scoped: `ceo.delegate`, `engineer.code.execute`, `marketer.content.draft`.
+- Escalation chain: agent → manager → … → CEO → Board (user).
+- Governance requests have a **TTL** — if not acted on within N minutes, they auto-reject (fail-safe, not fail-open).
+
+#### Agent Execution Runtime
+
+- **LLM adapter:** Pluggable interface supporting OpenAI, Anthropic, Ollama (local). Model selection per agent.
+- **Tool executor:** Sandboxed execution environment. Tools are registered with JSON Schema contracts. Agents can only invoke tools granted by their capability token.
+- **Memory manager:** Two-tier: (1) Short-term = last N messages in context window. (2) Long-term = structured KV entries with semantic search (optional vector store).
+- **Cost accumulator:** Every LLM call logged with `{model, input_tokens, output_tokens, cost_usd, latency_ms}`. Accumulated per-agent, checked against budget before each call.
+- **Trace emitter:** Every agent action emits an OpenTelemetry-compatible span: `agent.heartbeat`, `agent.tool_call`, `agent.llm_call`, `swarm.synthesis`.
+
+-----
+
+## 3. Database Schema
+
+### 3.1 Entity Relationship
+
+```
+companies 1──N agents 1──N agent_tasks
+    │              │           │
+    │              ├──N goals (self-referencing parent_id)
+    │              │
+    │              ├──N heartbeat_runs 1──N heartbeat_agent_runs
+    │              │
+    │              ├──N tool_calls (with trace spans)
+    │              │
+    │              ├──N memory_entries
+    │              │
+    │              └──1 capability_token
+    │
+    ├──N swarm_runs 1──N swarm_agents (ephemeral)
+    │                       │
+    │                       └──N swarm_messages (inter-agent)
+    │
+    ├──N governance_requests
+    │
+    └──N budget_alerts
+```
+
+### 3.2 Table Definitions (Drizzle ORM)
+
+```typescript
+// companies
+export const companies = sqliteTable('companies', {
+  id:          text('id').primaryKey(),           // ulid
+  name:        text('name').notNull(),
+  mission:     text('mission').notNull(),
+  status:      text('status', { enum: ['active', 'paused', 'archived'] }).default('active'),
+  budget_monthly_usd: real('budget_monthly_usd').notNull().default(100),
+  budget_used_usd:    real('budget_used_usd').notNull().default(0),
+  circuit_breaker:    text('circuit_breaker', { enum: ['closed', 'open'] }).default('closed'),
+  settings:    text('settings', { mode: 'json' }),  // JSON blob for company-wide config
+  created_at:  text('created_at').notNull(),
+  updated_at:  text('updated_at').notNull(),
+});
+
+// agents
+export const agents = sqliteTable('agents', {
+  id:           text('id').primaryKey(),
+  company_id:   text('company_id').notNull().references(() => companies.id),
+  name:         text('name').notNull(),
+  role:         text('role').notNull(),             // e.g., "ceo", "cto", "engineer", "marketer"
+  level:        integer('level').notNull(),          // 0=board(virtual), 1=C-suite, 2=VP, 3=Manager, 4=IC
+  title:        text('title').notNull(),             // human-readable: "Chief Technology Officer"
+  manager_id:   text('manager_id').references(() => agents.id),  // null for CEO
+  model:        text('model').notNull().default('claude-sonnet-4-20250514'),
+  system_prompt: text('system_prompt'),              // role-specific prompt
+  tools:        text('tools', { mode: 'json' }),     // granted tool IDs
+  capability_token: text('capability_token'),         // serialized capability scope
+  budget_monthly_usd: real('budget_monthly_usd').notNull().default(10),
+  budget_used_usd:    real('budget_used_usd').notNull().default(0),
+  status:       text('status', {
+    enum: ['idle', 'thinking', 'executing', 'waiting_approval', 'error', 'circuit_open', 'terminated']
+  }).default('idle'),
+  heartbeat_interval_sec: integer('heartbeat_interval_sec').default(3600),
+  next_heartbeat_at:      text('next_heartbeat_at'),
+  // Pixel office metadata
+  desk_x:      integer('desk_x'),
+  desk_y:      integer('desk_y'),
+  sprite_key:  text('sprite_key'),                   // reference to sprite sheet
+  created_at:  text('created_at').notNull(),
+  updated_at:  text('updated_at').notNull(),
+});
+
+// goals (hierarchical)
+export const goals = sqliteTable('goals', {
+  id:          text('id').primaryKey(),
+  company_id:  text('company_id').notNull().references(() => companies.id),
+  parent_id:   text('parent_id').references(() => goals.id),  // tree structure
+  assigned_to: text('assigned_to').references(() => agents.id),
+  title:       text('title').notNull(),
+  description: text('description'),
+  status:      text('status', {
+    enum: ['proposed', 'active', 'blocked', 'completed', 'cancelled']
+  }).default('proposed'),
+  priority:    integer('priority').default(0),        // 0=normal, 1=high, 2=critical
+  due_at:      text('due_at'),
+  completed_at: text('completed_at'),
+  created_at:  text('created_at').notNull(),
+  updated_at:  text('updated_at').notNull(),
+});
+
+// agent_tasks (parallel-safe with optimistic locking)
+export const agent_tasks = sqliteTable('agent_tasks', {
+  id:          text('id').primaryKey(),
+  goal_id:     text('goal_id').references(() => goals.id),
+  company_id:  text('company_id').notNull().references(() => companies.id),
+  title:       text('title').notNull(),
+  description: text('description'),
+  claimed_by:  text('claimed_by').references(() => agents.id),
+  status:      text('status', {
+    enum: ['pending', 'claimed', 'in_progress', 'review', 'done', 'failed', 'cancelled']
+  }).default('pending'),
+  version:     integer('version').notNull().default(0),  // optimistic locking
+  result:      text('result', { mode: 'json' }),
+  created_at:  text('created_at').notNull(),
+  updated_at:  text('updated_at').notNull(),
+});
+
+// heartbeat_runs (one per scheduled cycle)
+export const heartbeat_runs = sqliteTable('heartbeat_runs', {
+  id:          text('id').primaryKey(),
+  company_id:  text('company_id').notNull().references(() => companies.id),
+  trigger:     text('trigger', { enum: ['scheduled', 'manual', 'event'] }).default('scheduled'),
+  status:      text('status', { enum: ['running', 'completed', 'partial_failure', 'failed'] }),
+  agents_total:    integer('agents_total'),
+  agents_succeeded: integer('agents_succeeded'),
+  agents_failed:    integer('agents_failed'),
+  total_cost_usd:   real('total_cost_usd'),
+  started_at:  text('started_at').notNull(),
+  completed_at: text('completed_at'),
+});
+
+// heartbeat_agent_runs (one per agent per heartbeat)
+export const heartbeat_agent_runs = sqliteTable('heartbeat_agent_runs', {
+  id:              text('id').primaryKey(),
+  heartbeat_run_id: text('heartbeat_run_id').notNull().references(() => heartbeat_runs.id),
+  agent_id:        text('agent_id').notNull().references(() => agents.id),
+  status:          text('status', { enum: ['queued', 'running', 'succeeded', 'failed', 'skipped'] }),
+  decision:        text('decision', { mode: 'json' }),  // the agent's chain-of-thought output
+  cost_usd:        real('cost_usd'),
+  latency_ms:      integer('latency_ms'),
+  error:           text('error'),
+  started_at:      text('started_at'),
+  completed_at:    text('completed_at'),
+});
+
+// tool_calls (every LLM tool invocation)
+export const tool_calls = sqliteTable('tool_calls', {
+  id:          text('id').primaryKey(),
+  agent_id:    text('agent_id').notNull().references(() => agents.id),
+  company_id:  text('company_id').notNull().references(() => companies.id),
+  heartbeat_agent_run_id: text('heartbeat_agent_run_id').references(() => heartbeat_agent_runs.id),
+  swarm_agent_id:         text('swarm_agent_id').references(() => swarm_agents.id),
+  tool_name:   text('tool_name').notNull(),
+  input:       text('input', { mode: 'json' }),
+  output:      text('output', { mode: 'json' }),
+  model:       text('model'),
+  input_tokens:  integer('input_tokens'),
+  output_tokens: integer('output_tokens'),
+  cost_usd:    real('cost_usd'),
+  latency_ms:  integer('latency_ms'),
+  // OpenTelemetry trace context
+  trace_id:    text('trace_id'),
+  span_id:     text('span_id'),
+  parent_span_id: text('parent_span_id'),
+  created_at:  text('created_at').notNull(),
+});
+
+// swarm_runs
+export const swarm_runs = sqliteTable('swarm_runs', {
+  id:          text('id').primaryKey(),
+  company_id:  text('company_id').notNull().references(() => companies.id),
+  goal_id:     text('goal_id').references(() => goals.id),
+  leader_agent_id: text('leader_agent_id').references(() => agents.id),
+  task_description: text('task_description').notNull(),
+  phase:       text('phase', {
+    enum: ['proposed', 'pending_approval', 'spawning', 'executing', 'synthesizing', 'completed', 'failed', 'dissolved', 'cancelled']
+  }).default('proposed'),
+  specialist_roles: text('specialist_roles', { mode: 'json' }),  // proposed roles
+  synthesis_result: text('synthesis_result', { mode: 'json' }),
+  total_cost_usd:   real('total_cost_usd'),
+  max_agents:       integer('max_agents').default(5),
+  timeout_sec:      integer('timeout_sec').default(300),
+  created_at:  text('created_at').notNull(),
+  completed_at: text('completed_at'),
+});
+
+// swarm_agents (ephemeral per-swarm)
+export const swarm_agents = sqliteTable('swarm_agents', {
+  id:          text('id').primaryKey(),
+  swarm_run_id: text('swarm_run_id').notNull().references(() => swarm_runs.id),
+  role:        text('role').notNull(),                // specialist role within swarm
+  model:       text('model').notNull(),
+  system_prompt: text('system_prompt'),
+  status:      text('status', { enum: ['spawned', 'executing', 'completed', 'failed'] }),
+  output:      text('output', { mode: 'json' }),
+  cost_usd:    real('cost_usd'),
+  created_at:  text('created_at').notNull(),
+  completed_at: text('completed_at'),
+});
+
+// swarm_messages (inter-agent communication within a swarm)
+export const swarm_messages = sqliteTable('swarm_messages', {
+  id:          text('id').primaryKey(),
+  swarm_run_id: text('swarm_run_id').notNull().references(() => swarm_runs.id),
+  from_agent_id: text('from_agent_id').notNull().references(() => swarm_agents.id),
+  to_agent_id:   text('to_agent_id').references(() => swarm_agents.id),  // null = broadcast
+  content:     text('content', { mode: 'json' }).notNull(),
+  created_at:  text('created_at').notNull(),
+});
+
+// governance_requests
+export const governance_requests = sqliteTable('governance_requests', {
+  id:          text('id').primaryKey(),
+  company_id:  text('company_id').notNull().references(() => companies.id),
+  requesting_agent_id: text('requesting_agent_id').references(() => agents.id),
+  type:        text('type', {
+    enum: ['hire', 'budget_override', 'tool_grant', 'escalation', 'swarm_approval', 'goal_change']
+  }).notNull(),
+  description: text('description').notNull(),
+  payload:     text('payload', { mode: 'json' }),
+  status:      text('status', { enum: ['pending', 'approved', 'rejected', 'expired'] }).default('pending'),
+  ttl_minutes: integer('ttl_minutes').default(60),
+  decided_by:  text('decided_by'),                    // 'board' or agent_id
+  decided_at:  text('decided_at'),
+  created_at:  text('created_at').notNull(),
+});
+
+// memory_entries (per-agent long-term memory)
+export const memory_entries = sqliteTable('memory_entries', {
+  id:          text('id').primaryKey(),
+  agent_id:    text('agent_id').notNull().references(() => agents.id),
+  company_id:  text('company_id').notNull().references(() => companies.id),
+  category:    text('category', {
+    enum: ['fact', 'decision', 'relationship', 'preference', 'learning', 'context']
+  }).default('fact'),
+  content:     text('content').notNull(),
+  importance:  real('importance').default(0.5),        // 0.0-1.0, used for retrieval ranking
+  source_trace_id: text('source_trace_id'),            // link back to the tool_call that created it
+  expires_at:  text('expires_at'),                     // optional TTL for temporary memories
+  created_at:  text('created_at').notNull(),
+});
+
+// budget_alerts
+export const budget_alerts = sqliteTable('budget_alerts', {
+  id:          text('id').primaryKey(),
+  company_id:  text('company_id').notNull().references(() => companies.id),
+  agent_id:    text('agent_id').references(() => agents.id),
+  type:        text('type', { enum: ['warning_75', 'warning_90', 'hard_stop', 'circuit_breaker'] }),
+  message:     text('message').notNull(),
+  acknowledged: integer('acknowledged', { mode: 'boolean' }).default(false),
+  created_at:  text('created_at').notNull(),
+});
+
+// tool_registry (available tools in the system)
+export const tool_registry = sqliteTable('tool_registry', {
+  id:          text('id').primaryKey(),
+  name:        text('name').notNull().unique(),
+  description: text('description').notNull(),
+  input_schema: text('input_schema', { mode: 'json' }),   // JSON Schema
+  output_schema: text('output_schema', { mode: 'json' }),
+  risk_level:  text('risk_level', { enum: ['low', 'medium', 'high', 'critical'] }).default('low'),
+  requires_approval: integer('requires_approval', { mode: 'boolean' }).default(false),
+  created_at:  text('created_at').notNull(),
+});
+```
+
+### 3.3 Key Design Decisions
+
+|Decision                                          |Rationale                                                                                                    |
+|--------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
+|ULIDs over UUIDs                                  |Sortable by creation time, no index fragmentation                                                            |
+|`version` column on `agent_tasks`                 |Optimistic concurrency: `UPDATE ... WHERE version = $current` prevents double-claiming in parallel heartbeats|
+|Separate `heartbeat_runs` / `heartbeat_agent_runs`|Allows per-agent failure without marking entire heartbeat as failed                                          |
+|`swarm_messages` table                            |Enables inter-agent communication within swarms (research agent shares finding with implementation agent)    |
+|`tool_registry` with `risk_level`                 |High/critical tools auto-trigger governance approval                                                         |
+|`capability_token` on agents                      |Serialized scope string like `company.read,goals.write,tools.code_exec` — validated at runtime               |
+|JSON `settings` on company                        |Extensible config without schema migrations for every new setting                                            |
+|`circuit_breaker` on company                      |Company-wide kill switch when budget is exhausted or anomaly detected                                        |
+
+-----
+
+## 4. Parallel Orchestration Engine (Enhanced)
+
+### 4.1 Structured Concurrency (Not Bare Promise.all)
+
+```typescript
+// Conceptual — the actual implementation pattern
+class HeartbeatRunner {
+  private pool: AgentPool;          // max N concurrent
+  private circuitBreakers: Map<string, CircuitBreaker>;
+
+  async runHeartbeat(companyId: string): Promise<HeartbeatResult> {
+    const run = await createHeartbeatRun(companyId);
+    const dueAgents = await getDueAgents(companyId);
+
+    // Check company-wide circuit breaker first
+    if (await isCompanyCircuitOpen(companyId)) {
+      return { status: 'skipped', reason: 'company_circuit_open' };
+    }
+
+    // Structured concurrency: pool with backpressure
+    const results = await this.pool.map(dueAgents, async (agent) => {
+      // Per-agent circuit breaker check
+      const cb = this.circuitBreakers.get(agent.id);
+      if (cb?.isOpen()) {
+        return { agentId: agent.id, status: 'skipped', reason: 'agent_circuit_open' };
+      }
+
+      try {
+        // Budget check BEFORE execution
+        if (agent.budget_used_usd >= agent.budget_monthly_usd) {
+          return { agentId: agent.id, status: 'skipped', reason: 'budget_exhausted' };
+        }
+
+        const result = await executeAgentHeartbeat(agent, run.id);
+        cb?.recordSuccess();
+        return { agentId: agent.id, status: 'succeeded', result };
+      } catch (error) {
+        cb?.recordFailure();
+        await deadLetterQueue.enqueue({ agent, error, runId: run.id });
+        emitEvent('agent.heartbeat.failed', { agentId: agent.id, error });
+        return { agentId: agent.id, status: 'failed', error };
+      }
+    }, { concurrency: 10, timeout: 30_000 }); // max 10 parallel, 30s timeout per agent
+
+    return aggregateResults(run, results);
+  }
+}
+```
+
+### 4.2 Task Claiming (Optimistic Locking)
+
+```sql
+-- Atomic task claim: only succeeds if version hasn't changed
+UPDATE agent_tasks
+SET claimed_by = :agent_id,
+    status = 'claimed',
+    version = version + 1,
+    updated_at = :now
+WHERE id = :task_id
+  AND status = 'pending'
+  AND version = :expected_version;
+-- If rows_affected = 0, another agent already claimed it
+```
+
+### 4.3 Circuit Breaker State Machine
+
+```
+CLOSED ──(3 failures in 60s)──→ OPEN ──(cooldown 300s)──→ HALF_OPEN ──(1 success)──→ CLOSED
+                                                           │
+                                                           └──(1 failure)──→ OPEN
+```
+
+-----
+
+## 5. Swarm Orchestration Engine (Enhanced)
+
+### 5.1 Lifecycle State Machine
+
+```
+PROPOSED → PENDING_APPROVAL → SPAWNING → EXECUTING → SYNTHESIZING → COMPLETED → DISSOLVED
+    │              │                          │              │
+    └──CANCELLED   └──CANCELLED               └──FAILED      └──FAILED
+```
+
+### 5.2 Inter-Agent Messaging
+
+Swarm agents communicate via a lightweight message bus (backed by `swarm_messages` table):
+
+```typescript
+interface SwarmMessage {
+  from: string;       // swarm_agent_id
+  to: string | null;  // null = broadcast to all swarm agents
+  type: 'finding' | 'question' | 'dependency' | 'partial_result' | 'error';
+  content: unknown;
+}
+
+// Example: Research agent shares a finding with Implementation agent
+await swarmBus.send({
+  from: researchAgent.id,
+  to: implAgent.id,
+  type: 'finding',
+  content: { key: 'api_rate_limit', value: '100 req/min', source: 'docs' }
+});
+```
+
+### 5.3 Swarm Cost Estimation
+
+Before spawning, the swarm leader estimates total cost:
+
+```
+estimated_cost = N_agents × avg_tokens_per_specialist × cost_per_token × estimated_rounds
+```
+
+If `estimated_cost > company.budget_monthly_usd * 0.1` (10% of monthly budget), auto-trigger governance approval.
+
+-----
+
+## 6. Corporate Hierarchy & Capability Tokens
+
+### 6.1 Hierarchy Levels
+
+```
+Level 0: Board (virtual — the user)
+Level 1: CEO
+Level 2: C-Suite (CTO, CMO, COO, CFO)
+Level 3: VP
+Level 4: Director / Manager
+Level 5: Individual Contributor (Engineer, Designer, Marketer)
+```
+
+### 6.2 Capability Token Format
+
+```typescript
+interface CapabilityToken {
+  agent_id: string;
+  role: string;
+  level: number;
+  scopes: string[];           // e.g., ['goals.write', 'tools.code_exec', 'agents.delegate']
+  delegate_to_levels: number[]; // can only delegate to these levels (must be > own level)
+  escalate_to: string;        // manager agent_id
+  max_single_spend_usd: number;
+  issued_at: string;
+  expires_at: string;
+}
+```
+
+### 6.3 Hierarchy Enforcement Middleware
+
+```typescript
+async function enforceHierarchy(ctx, next) {
+  const { actingAgent, targetAgent, action } = ctx;
+
+  // Delegation: can only command direct reports
+  if (action === 'delegate') {
+    if (targetAgent.manager_id !== actingAgent.id) {
+      await createGovernanceRequest({
+        type: 'escalation',
+        description: `${actingAgent.name} attempted to delegate to non-report ${targetAgent.name}`,
+        requesting_agent_id: actingAgent.id,
+      });
+      throw new HierarchyViolation('Can only delegate to direct reports');
+    }
+  }
+
+  // Escalation: can only escalate to own manager
+  if (action === 'escalate') {
+    if (actingAgent.manager_id !== targetAgent.id) {
+      throw new HierarchyViolation('Can only escalate to direct manager');
+    }
+  }
+
+  await next();
+}
+```
+
+-----
+
+## 7. CLI (`company-hq`)
+
+### 7.1 Enhanced Command Set
+
+```
+company-hq init                              Interactive setup wizard
+company-hq hire <role> [--model] [--budget]  Add agent to org chart
+company-hq fire <agent-id> [--reassign-to]   Remove agent, optionally reassign tasks
+company-hq promote <agent-id> --to <role>    Change role/level
+company-hq org                               ASCII org chart with live status
+company-hq goal add "desc" [--assign] [--parent]  Create goal (hierarchical)
+company-hq goal tree                         Print goal decomposition tree
+company-hq run [--agent <id>] [--dry-run]    Trigger heartbeat (dry-run shows plan without executing)
+company-hq swarm "task" [--size N] [--leader] Launch swarm
+company-hq swarm status <swarm-id>           Show swarm progress
+company-hq swarm cancel <swarm-id>           Cancel running swarm
+company-hq logs [--agent] [--follow] [--level] Tail logs with filtering
+company-hq board                             Interactive governance mode
+company-hq budget                            Per-agent spend + projected burn
+company-hq budget set <agent-id> <amount>    Update agent budget
+company-hq status                            Company dashboard summary
+company-hq watch                             Persistent TUI dashboard (Ink)
+company-hq tools list                        Show registered tools
+company-hq tools grant <agent-id> <tool>     Grant tool access
+company-hq trace <trace-id>                  Show full trace waterfall
+company-hq export [--format json|csv]        Export company data
+company-hq danger reset                      Reset company (with confirmation)
+```
+
+### 7.2 `company-hq watch` — Persistent TUI (Ink)
+
+A real-time terminal dashboard using Ink (React for CLI):
+
+```
+┌─ CompanyHQ: LoveLogicAI ──────────────────────────── Budget: $42.18/$100 ─┐
+│                                                                             │
+│  ◉ CEO: Logix          THINKING   [$12.40]  "Decomposing Q1 roadmap..."    │
+│  ├─ ◉ CTO: Forjin      IDLE       [$8.20]                                  │
+│  │  ├─ ◉ Eng: Pulsara   EXECUTING  [$6.10]  "Running test suite..."       │
+│  │  └─ ◉ Eng: Voidling  IDLE       [$3.80]                                 │
+│  └─ ◉ CMO: Spectra      WAITING    [$5.90]  "Pending: content approval"   │
+│                                                                             │
+│  ── Active Swarm ──────────────────────────────────────────────────────     │
+│  Swarm #3: "Competitive analysis" [4/5 agents done] ████████████░░ 80%     │
+│                                                                             │
+│  ── Governance Queue (2 pending) ──────────────────────────────────────     │
+│  [1] Swarm approval: Est. $4.20 for 6-agent research swarm                  │
+│  [2] Budget override: Pulsara requesting $5 increase                        │
+│                                                                             │
+│  [g]overnance  [h]eartbeat  [s]warm  [l]ogs  [q]uit                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+-----
+
+## 8. Frontend — Pixel Office Dashboard
+
+### 8.1 Canvas Architecture (from PixelHQ ULTRA Skill)
+
+Uses the proven PixelEngine pattern — not CSS keyframes:
+
+```
+Layer 0: Background (dark office floor, #1a1a2e tiled)
+Layer 1: Furniture (desks, chairs, whiteboards — static tiles)
+Layer 2: Agent sprites (animated pixel characters at desks)
+Layer 3: Effects (thinking bubbles, sparkles, status indicators)
+Layer 4: UI overlay (agent name labels, status badges)
+```
+
+- Sprites are 32×32, rendered at 4x scale
+- `image-rendering: pixelated` enforced everywhere
+- Palette: `neon-circuit` from PixelHQ skill (cyberpunk office aesthetic)
+- Agent states map to sprite animations:
+  - `idle` → breathing (2 frames, 200ms)
+  - `thinking` → head bob + thought bubble particle effect (4 frames, 150ms)
+  - `executing` → typing animation + screen glow (6 frames, 100ms)
+  - `waiting_approval` → hand-raise + pulse (3 frames, 300ms)
+  - `error` → red flash + shake (2 frames, 80ms)
+  - `circuit_open` → grayed out + ZZZ
+
+### 8.2 View Inventory
+
+|View                  |Description                                                                            |
+|----------------------|---------------------------------------------------------------------------------------|
+|**Office Canvas**     |Main pixel art view — animated agents at desks, real-time                              |
+|**Org Chart**         |Interactive hierarchy tree; click agent → detail panel                                 |
+|**Parallel Swimlanes**|Horizontal lanes per agent during heartbeat; tasks flow through with live status       |
+|**Swarm Cluster**     |Agents converging on central node; partial outputs radiate outward; synthesis animation|
+|**Goal Tree**         |Hierarchical goal decomposition from mission → tasks; collapsible                      |
+|**Ticket/Trace Log**  |Full audit trail with OpenTelemetry trace waterfall view                               |
+|**Budget Dashboard**  |Per-agent spend bars, burn rate projection, alert history                              |
+|**Governance Panel**  |Pending approvals with one-click approve/reject                                        |
+|**Heartbeat Timeline**|Gantt-style view of past/scheduled wakeups across all agents                           |
+|**Memory Explorer**   |Browse per-agent memory entries, filter by category, importance                        |
+
+### 8.3 SSE Event Schema
+
+```typescript
+type SSEEvent =
+  | { type: 'agent.state_change'; agent_id: string; from: AgentStatus; to: AgentStatus }
+  | { type: 'agent.heartbeat.start'; agent_id: string; heartbeat_run_id: string }
+  | { type: 'agent.heartbeat.complete'; agent_id: string; result: unknown }
+  | { type: 'agent.tool_call'; agent_id: string; tool: string; input: unknown }
+  | { type: 'task.claimed'; task_id: string; agent_id: string }
+  | { type: 'task.completed'; task_id: string; result: unknown }
+  | { type: 'swarm.phase_change'; swarm_id: string; phase: SwarmPhase }
+  | { type: 'swarm.agent_output'; swarm_id: string; swarm_agent_id: string; output: unknown }
+  | { type: 'swarm.synthesis'; swarm_id: string; result: unknown }
+  | { type: 'governance.new_request'; request: GovernanceRequest }
+  | { type: 'governance.decided'; request_id: string; decision: 'approved' | 'rejected' }
+  | { type: 'budget.alert'; alert: BudgetAlert }
+  | { type: 'budget.circuit_breaker'; company_id: string; state: 'open' | 'closed' };
+```
+
+-----
+
+## 9. Security Model
+
+### 9.1 Threat Surface
+
+|Threat                                |Mitigation                                                                                                                                 |
+|--------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+|**Prompt injection via agent output** |Output sandboxing: agent outputs are treated as untrusted data; never interpolated into system prompts of other agents without sanitization|
+|**Privilege escalation**              |Capability tokens validated at every action; hierarchy middleware prevents cross-branch commands                                           |
+|**Budget overrun**                    |3-tier budget: per-call check → per-agent cap → company circuit breaker                                                                    |
+|**Runaway swarm**                     |Swarm timeout + max-agents cap + cost estimation before spawn                                                                              |
+|**Data exfiltration via tools**       |Tool registry with risk levels; high-risk tools require governance approval per invocation                                                 |
+|**Denial of service (self-inflicted)**|Rate limiting on heartbeat frequency; minimum interval between heartbeats per agent                                                        |
+
+### 9.2 Output Sandboxing
+
+Agent outputs are **never** trusted:
+
+- Agent A’s output passed to Agent B is wrapped in `<agent_output source="agent_a">...</agent_output>` tags with explicit instructions to treat as untrusted data
+- No raw output interpolation into system prompts
+- All tool call arguments are validated against JSON Schema before execution
+
+-----
+
+## 10. Observability
+
+### 10.1 Trace Hierarchy
+
+```
+trace: heartbeat_run_abc123
+  └─ span: agent.heartbeat (agent: ceo)
+       ├─ span: agent.llm_call (model: claude-sonnet, tokens: 1200, cost: $0.003)
+       ├─ span: agent.tool_call (tool: goal_decompose)
+       │    └─ span: agent.llm_call (model: claude-sonnet, tokens: 800, cost: $0.002)
+       └─ span: agent.delegate (to: cto, task: "implement auth")
+```
+
+### 10.2 Metrics
+
+- `heartbeat.duration_ms` (histogram, per company)
+- `agent.execution_duration_ms` (histogram, per agent, per role)
+- `llm.cost_usd` (counter, per model, per agent)
+- `llm.tokens_total` (counter, input/output, per model)
+- `swarm.duration_ms` (histogram, per swarm size)
+- `governance.pending_count` (gauge)
+- `governance.decision_latency_ms` (histogram)
+- `circuit_breaker.state_changes` (counter, per agent)
+- `budget.utilization_pct` (gauge, per agent, per company)
+
+-----
+
+## 11. Task Breakdown (Enhanced)
+
+### Phase 0: Foundation (Sprint 0) — ~2 days
+
+|#  |Task                                                   |Depends On|Deliverable                                    |
+|---|-------------------------------------------------------|----------|-----------------------------------------------|
+|0.1|Monorepo scaffold: pnpm workspace, tsconfig, turbo.json|—         |Working `pnpm install && pnpm build`           |
+|0.2|Drizzle ORM setup + schema (all tables above)          |0.1       |`pnpm db:generate && pnpm db:push` working     |
+|0.3|Seed script: create demo company + 5-agent org chart   |0.2       |`pnpm db:seed` populates test data             |
+|0.4|OpenAPI spec (comprehensive, all endpoints from §2)    |0.1       |`openapi.yaml` validated                       |
+|0.5|Codegen: Zod schemas + React Query hooks from OpenAPI  |0.4       |`lib/api-zod`, `lib/api-client-react` generated|
+
+### Phase 1: Core Engine (Sprint 1) — ~3 days
+
+|#  |Task                                                 |Depends On|Deliverable                                                            |
+|---|-----------------------------------------------------|----------|-----------------------------------------------------------------------|
+|1.1|Hono API server: all CRUD routes                     |0.2, 0.5  |All endpoints returning correct data                                   |
+|1.2|Hierarchy enforcement middleware                     |1.1       |Tests proving cross-branch delegation fails                            |
+|1.3|Capability token system                              |1.1       |Token generation, validation, scope checking                           |
+|1.4|Agent execution runtime (LLM adapter + tool executor)|1.1       |Single agent can execute a heartbeat with LLM                          |
+|1.5|Tool registry + 5 built-in tools                     |1.4       |`goal_decompose`, `task_create`, `delegate`, `escalate`, `memory_write`|
+|1.6|Cost accumulator + 3-tier budget enforcement         |1.4       |Budget exhaustion correctly stops agent                                |
+
+### Phase 2: Parallel + Swarm (Sprint 2) — ~3 days
+
+|#  |Task                                                |Depends On|Deliverable                                              |
+|---|----------------------------------------------------|----------|---------------------------------------------------------|
+|2.1|Heartbeat scheduler with structured concurrency pool|1.4       |Parallel heartbeat runs all due agents                   |
+|2.2|Circuit breaker per agent                           |2.1       |3 failures → circuit opens → auto-recovery after cooldown|
+|2.3|Dead-letter queue for failed runs                   |2.1       |Failed runs captured with full context                   |
+|2.4|Optimistic task locking                             |1.1       |Concurrent claims don’t double-assign                    |
+|2.5|Swarm engine: full 6-phase lifecycle                |1.4, 1.5  |Swarm runs from propose to dissolve                      |
+|2.6|Inter-agent messaging (swarm bus)                   |2.5       |Agents exchange messages during swarm                    |
+|2.7|Swarm cost estimation + governance trigger          |2.5, 3.1  |Expensive swarms require approval                        |
+
+### Phase 3: Governance + Events (Sprint 2) — ~2 days
+
+|#  |Task                                                       |Depends On|Deliverable                         |
+|---|-----------------------------------------------------------|----------|------------------------------------|
+|3.1|Governance request system (create, approve, reject, expire)|1.1       |Full governance workflow            |
+|3.2|SSE streaming endpoint (`/api/events`)                     |1.1       |All event types streaming           |
+|3.3|Governance TTL auto-expiry                                 |3.1       |Unanswered requests expire after TTL|
+|3.4|OpenTelemetry trace spans on all LLM calls                 |1.4       |Trace waterfall viewable            |
+
+### Phase 4: CLI (Sprint 3) — ~2 days
+
+|#  |Task                                                   |Depends On|Deliverable                             |
+|---|-------------------------------------------------------|----------|----------------------------------------|
+|4.1|CLI scaffold: Commander + Ink + chalk                  |0.1       |`npx company-hq --help` works           |
+|4.2|Core commands: init, hire, fire, org, goal, run        |1.1       |All CRUD via CLI                        |
+|4.3|Swarm commands: swarm launch, status, cancel           |2.5       |Swarm management via CLI                |
+|4.4|Governance commands: board (interactive approve/reject)|3.1       |Interactive governance mode             |
+|4.5|`company-hq watch` persistent TUI dashboard            |3.2       |Live-updating terminal UI               |
+|4.6|`company-hq logs --follow` with SSE streaming          |3.2       |Real-time log tailing                   |
+|4.7|Budget + trace commands                                |1.6, 3.4  |Budget view, trace waterfall in terminal|
+
+### Phase 5: Pixel Frontend (Sprint 3-4) — ~4 days
+
+|#   |Task                                                   |Depends On|Deliverable                        |
+|----|-------------------------------------------------------|----------|-----------------------------------|
+|5.1 |React app scaffold + routing + dark retro theme        |0.5       |App shell with sidebar nav         |
+|5.2 |Pixel canvas engine (PixelHQ ULTRA pattern)            |5.1       |Canvas rendering with sprite sheets|
+|5.3 |Agent sprite system: 6 states × animation frames       |5.2       |All agent states animate correctly |
+|5.4 |Office layout generator (auto-place desks per org size)|5.2, 5.3  |Office adapts to company size      |
+|5.5 |SSE context provider + React Query integration         |5.1, 3.2  |Live data flowing to all views     |
+|5.6 |Org chart view (interactive hierarchy)                 |5.5       |Click-to-inspect agents            |
+|5.7 |Parallel swimlane view                                 |5.5       |Live heartbeat visualization       |
+|5.8 |Swarm cluster view                                     |5.5       |Swarm convergence animation        |
+|5.9 |Goals board, ticket log, budget dashboard              |5.5       |All remaining views                |
+|5.10|Governance panel (approve/reject from UI)              |5.5, 3.1  |One-click governance               |
+|5.11|Heartbeat timeline (Gantt-style)                       |5.5       |Historical + scheduled view        |
+|5.12|Memory explorer                                        |5.5       |Browse agent memories              |
+
+### Phase 6: Testing + Hardening (Sprint 4) — ~2 days
+
+|#  |Task                                            |Depends On|Deliverable                    |
+|---|------------------------------------------------|----------|-------------------------------|
+|6.1|API contract tests (all endpoints)              |1.1       |Test suite passing             |
+|6.2|Property tests for scheduler (concurrent safety)|2.1       |No double-claims under load    |
+|6.3|Swarm lifecycle tests (all state transitions)   |2.5       |All phases tested              |
+|6.4|Hierarchy enforcement tests                     |1.2       |Cross-branch delegation blocked|
+|6.5|Budget enforcement tests (edge cases)           |1.6       |Budget cannot be exceeded      |
+|6.6|E2E: full heartbeat cycle with 5 agents         |All       |Green path working end-to-end  |
+
+-----
+
+## 12. Monorepo Structure
+
+```
+company-hq/
+├── package.json                    # pnpm workspace root
+├── pnpm-workspace.yaml
+├── turbo.json
+├── drizzle.config.ts
+│
+├── packages/
+│   ├── db/                         # Drizzle schema + migrations
+│   │   ├── src/schema/index.ts
+│   │   ├── src/seed.ts
+│   │   └── drizzle/               # generated migrations
+│   │
+│   ├── api-spec/                   # OpenAPI spec
+│   │   └── openapi.yaml
+│   │
+│   ├── api-zod/                    # Generated Zod schemas
+│   │   └── src/index.ts
+│   │
+│   ├── api-client/                 # Generated React Query hooks
+│   │   └── src/index.ts
+│   │
+│   ├── engine/                     # Core orchestration engine
+│   │   ├── src/heartbeat/          # Scheduler, pool, circuit breaker
+│   │   ├── src/swarm/              # Swarm engine, message bus
+│   │   ├── src/agent/              # Agent runtime, LLM adapter, tools
+│   │   ├── src/governance/         # Capability tokens, approval workflow
+│   │   ├── src/budget/             # 3-tier cost tracking
+│   │   ├── src/events/             # SSE event emitter
+│   │   └── src/trace/              # OpenTelemetry spans
+│   │
+│   └── shared/                     # Types, utils, constants
+│       └── src/index.ts
+│
+├── apps/
+│   ├── api/                        # Hono server (Cloudflare Worker or Node)
+│   │   ├── src/routes/
+│   │   ├── src/middleware/
+│   │   ├── src/app.ts
+│   │   ├── wrangler.toml           # Cloudflare config
+│   │   └── package.json
+│   │
+│   ├── web/                        # React frontend (Vite)
+│   │   ├── src/
+│   │   │   ├── canvas/             # Pixel engine, sprites, office layout
+│   │   │   ├── views/              # All view components
+│   │   │   ├── hooks/              # SSE, React Query
+│   │   │   └── App.tsx
+│   │   └── package.json
+│   │
+│   └── cli/                        # company-hq CLI (Commander + Ink)
+│       ├── src/
+│       │   ├── commands/           # One file per command
+│       │   ├── tui/                # Ink components for `watch`
+│       │   └── index.ts
+│       ├── bin/company-hq.js
+│       └── package.json
+│
+└── tests/
+    ├── contract/                   # API contract tests
+    ├── property/                   # Property-based tests (scheduler)
+    ├── integration/                # Full lifecycle tests
+    └── visual/                     # Pixel canvas regression tests
+```
+
+-----
+
+## 13. Open Risks
+
+|# |Risk                                                        |Likelihood|Impact|Mitigation                                                                           |
+|--|------------------------------------------------------------|----------|------|-------------------------------------------------------------------------------------|
+|R1|LLM API rate limits during parallel heartbeat               |High      |Medium|Backpressure pool; exponential backoff; model fallback chain                         |
+|R2|Swarm cost explosion (agents spawn sub-swarms)              |Medium    |High  |Max recursion depth = 1; hard cost cap; governance gate                              |
+|R3|Agent output poisoning (injection via previous agent output)|Medium    |High  |Output sandboxing; never raw-interpolate agent outputs                               |
+|R4|SQLite D1 write contention during parallel heartbeat        |Medium    |Medium|Optimistic locking; batch writes; consider Durable Objects for hot-path state        |
+|R5|CLI → API latency over network                              |Low       |Low   |Local mode option; CLI can embed the engine directly                                 |
+|R6|Pixel canvas performance with 50+ sprites                   |Medium    |Medium|Dirty-rect rendering; only redraw changed sprites; offscreen canvas for static layers|
+|R7|Swarm inter-agent messaging deadlock                        |Low       |High  |Message TTL; cycle detection; timeout per swarm phase                                |
+
+-----
+
+## 14. Acceptance Criteria (Definition of Done)
+
+The platform is “done” when ALL of the following are true:
+
+1. **`company-hq init`** creates a new company with CEO agent in < 30 seconds
+1. **`company-hq hire engineer --model claude-sonnet-4-20250514`** adds an agent to the org chart under CTO
+1. **`company-hq run`** triggers a parallel heartbeat, CEO decomposes a goal, delegates to reports, all within budget
+1. **`company-hq swarm "research competitors" --size 4`** launches a swarm that goes through all 6 phases and produces a synthesis
+1. **`company-hq board`** shows pending governance requests and allows approve/reject
+1. **Budget hard-stop** prevents any LLM call when agent budget is exhausted
+1. **Hierarchy enforcement** prevents an IC from delegating to another IC’s manager
+1. **Pixel office** shows all agents animated at correct states, updating in real-time via SSE
+1. **Swarm cluster view** animates convergence and synthesis in the browser
+1. **Full trace** of a heartbeat cycle is viewable as a waterfall in both CLI and web UI
+1. **All tests pass** including contract, property, hierarchy, and budget edge cases
+
+-----
+
+## 15. Ledgers
+
+### Assumption Ledger
+
+|# |Assumption                                                  |Basis                                                     |
+|--|------------------------------------------------------------|----------------------------------------------------------|
+|A1|Cloudflare Workers D1 is sufficient for the data layer      |HappierCoder already targets CF; D1 handles SQLite at edge|
+|A2|LLM costs are primarily OpenAI/Anthropic API calls          |Ollama local is optional but not primary                  |
+|A3|Single-tenant (one user = one board) is acceptable for v1   |Explicitly out of scope per original plan                 |
+|A4|Swarm max size of 10 agents is sufficient                   |Larger swarms are exponentially expensive                 |
+|A5|32×32 sprites at 4x scale are readable on all target screens|Standard PixelHQ resolution                               |
+
+### Decision Log
+
+|# |Decision                                |Alternatives Considered                |Tradeoff                                                               |
+|--|----------------------------------------|---------------------------------------|-----------------------------------------------------------------------|
+|D1|Hono over Express                       |Express (familiar), Fastify (fast)     |Hono runs on CF Workers natively; Express/Fastify need Node runtime    |
+|D2|Drizzle over Prisma                     |Prisma (popular), raw SQL              |Drizzle is zero-overhead, works with D1, fully typed                   |
+|D3|Structured concurrency over Promise.all |Promise.all (simple), p-limit (basic)  |Error isolation, backpressure, circuit breaking require proper pool    |
+|D4|Ink for CLI TUI over blessed/raw ANSI   |blessed (powerful), chalk-only (simple)|Ink uses React mental model — team already knows React                 |
+|D5|Canvas engine over CSS animations       |CSS (simpler)                          |CSS can’t do sprite sheets, tile layers, or proper pixel art at scale  |
+|D6|Capability tokens over role-based access|Simple role checks (easier)            |Tokens are auditable, revocable, time-bounded — better security posture|
+
+-----
+
+*Next Action:* Review this spec, then lock Phase 0 tasks. I recommend starting with `0.1` (monorepo scaffold) + `0.2` (Drizzle schema) as the first two commands to execute.
