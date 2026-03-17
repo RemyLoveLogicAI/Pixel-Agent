@@ -1,0 +1,26 @@
+<parameter name="content"># HappierCoder Implementation TODO
+Status: [0/14] In Progress
+
+## 1. Cloudflare Workers Setup (Core Runtime) [0/5]
+- [ ] Create `cloudflare/wrangler.toml`
+- [ ] `cloudflare/src/index.ts` (export CoordinatorAgent)
+- [ ] `cloudflare/src/CoordinatorAgent.ts` (extends Agent, genesis meta-prompt)
+- [ ] `cloudflare/src/ResearchAgent.ts`, `CodeAgent.ts` (MCP examples)
+- [ ] `pnpm add -w @cloudflare/workers-types agents @ai-sdk/openai`
+
+## 2. AI Gateway Dynamic Route [0/2]
+- [ ] Manual: Deploy `happiercoder-router` via CF dashboard
+- [ ] Update services to use Gateway baseURL
+
+## 3. Paperclip API Enhancements [0/4]
+- [ ] Add `/api/genesis` endpoint (intent → company spec)
+- [ ] `/api/invites/:token/onboarding.txt` (agent init)
+- [ ] Integrate heartbeats → `this.schedule`
+- [ ] Extend schema: durableObjectIds, aiGatewayToken
+
+## 4. UI/Mobile Evolution [0/3]
+- [ ] `mockup-sandbox/src/hooks/useAgent.ts` (@cloudflare/agents/react)
+- [ ] Update App.tsx for streaming/WebSocket
+- [ ] React Native stub in `mobile/`
+
+## 5. Self-Bootstrapping & Testing [0/0]</parameter>

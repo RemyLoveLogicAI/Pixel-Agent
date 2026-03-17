@@ -323,10 +323,17 @@ export class SwarmEngine {
             await db.insert(memoryEntriesTable).values({
                 id: crypto.randomUUID(),
                 agentId: swarm.leaderAgentId,
+                companyId: swarm.companyId,
                 key: `swarm:${swarmId}:synthesis`,
-                value: swarm.synthesisResult as any,
-                category: 'swarm_output',
-                createdAt: new Date(),
+                category: 'context',
+                content:
+                    typeof swarm.synthesisResult === 'object' &&
+                    swarm.synthesisResult !== null &&
+                    'finalSummary' in swarm.synthesisResult
+                        ? String(swarm.synthesisResult.finalSummary)
+                        : JSON.stringify(swarm.synthesisResult),
+                metadata: swarm.synthesisResult as Record<string, unknown>,
+                importance: 1,
             });
         }
 
