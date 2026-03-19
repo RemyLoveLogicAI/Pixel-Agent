@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Cloudflare Wrangler
+.wrangler/
+
+# Git
+.git/
+.gitignore
+
+# Editor / OS
+.DS_Store
+*.log
+.vscode/
+.idea/
+
+# Test artifacts
+coverage/
