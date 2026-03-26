@@ -3,11 +3,13 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { agentsTable } from "./agents";
 import { companiesTable } from "./companies";
+import { workspacesTable } from "./workspaces";
 
 export const toolCallsTable = pgTable("tool_calls", {
   id: text("id").primaryKey(),
   agentId: text("agent_id").notNull().references(() => agentsTable.id),
   companyId: text("company_id").notNull().references(() => companiesTable.id),
+  workspaceId: text("workspace_id").references(() => workspacesTable.id),
   heartbeatAgentRunId: text("heartbeat_agent_run_id"),
   swarmAgentId: text("swarm_agent_id"),
   toolName: text("tool_name").notNull(),

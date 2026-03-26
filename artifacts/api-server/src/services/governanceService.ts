@@ -2,6 +2,8 @@ import { db, governanceRequestsTable, agentsTable, companiesTable, capabilityTok
 import { eq, and } from "drizzle-orm";
 import { capabilityTokenService } from "./capabilityTokenService.js";
 import { hierarchyService } from "./hierarchyService.js";
+import { broadcastEvent } from "../routes/events.js";
+import { createWorkspaceSnapshotArchive, restoreWorkspaceSnapshotArchive } from "./workspaceSnapshotService.js";
 
 /**
  * Capability Token - defines what an agent can do
@@ -158,9 +160,152 @@ export class GovernanceService {
                 break;
 
             case "swarm_approval":
-                // The swarm will be waiting for approval - resume execution
-                // This would integrate with the swarm engine
+                // Advance the swarm from `proposed` → full lifecycle
+                if (metadata?.swarmId) {
+                    const { swarmEngine } = await import("./swarmEngine.js");
+                    await swarmEngine.approveSwarm(metadata.swarmId as string, request.decidedBy ?? "human");
+                    swarmEngine.runSwarm(metadata.swarmId as string).catch((err: unknown) =>
+                        console.error(`[Governance] swarm ${metadata.swarmId} run error:`, err)
+                    );
+                }
                 break;
+
+            case "tool_access":
+            case "strategy_change":
+                // Generic “approved action” dispatcher (workspace snapshots, MCP connections, workflow resume, etc.)
+                if (metadata?.operation && metadata?.companyId) {
+                    await this.executeOperation(metadata.companyId as string, metadata.operation as string, metadata);
+                }
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    private async executeOperation(companyId: string, operation: string, metadata: Record<string, unknown>): Promise<void> {
+        switch (operation) {
+            case "workspace.snapshot.create": {
+                const { workspacesTable, workspaceSnapshotsTable } = await import("@workspace/db");
+                const workspaceId = String(metadata.workspaceId);
+                const label = String(metadata.label ?? `Snapshot ${new Date().toISOString()}`);
+                const createdBy = String(metadata.createdBy ?? "human");
+                const snapshotId = String(metadata.snapshotId ?? crypto.randomUUID());
+
+                const [workspace] = await db.select().from(workspacesTable).where(eq(workspacesTable.id, workspaceId));
+                if (!workspace) throw new Error("Workspace not found");
+
+                const archivePath = await createWorkspaceSnapshotArchive({ fsRoot: workspace.fsRoot, snapshotId });
+
+                await db.insert(workspaceSnapshotsTable).values({
+                    id: snapshotId,
+                    workspaceId,
+                    label,
+                    storageRef: archivePath,
+                    createdBy,
+                });
+
+                broadcastEvent(companyId, {
+                    type: "workspace.snapshot_created",
+                    data: { workspaceId, snapshotId },
+                });
+                break;
+            }
+
+            case "workspace.snapshot.restore": {
+                const { workspacesTable, workspaceSnapshotsTable } = await import("@workspace/db");
+                const workspaceId = String(metadata.workspaceId);
+                const snapshotId = String(metadata.snapshotId);
+
+                const [workspace] = await db.select().from(workspacesTable).where(eq(workspacesTable.id, workspaceId));
+                if (!workspace) throw new Error("Workspace not found");
+
+                const [snapshot] = await db
+                    .select()
+                    .from(workspaceSnapshotsTable)
+                    .where(and(eq(workspaceSnapshotsTable.workspaceId, workspaceId), eq(workspaceSnapshotsTable.id, snapshotId)));
+                if (!snapshot) throw new Error("Snapshot not found");
+
+                await restoreWorkspaceSnapshotArchive({ fsRoot: workspace.fsRoot, archivePath: snapshot.storageRef });
+
+                broadcastEvent(companyId, {
+                    type: "workspace.snapshot_restored",
+                    data: { workspaceId, snapshotId },
+                });
+                break;
+            }
+
+            case "workspace.mcp.create": {
+                const { mcpConnectionsTable } = await import("@workspace/db");
+                const connectionId = String(metadata.connectionId ?? crypto.randomUUID());
+                const workspaceId = String(metadata.workspaceId);
+                const name = String(metadata.name);
+                const serverUrl = metadata.serverUrl ? String(metadata.serverUrl) : null;
+                const localCommand = metadata.localCommand ? String(metadata.localCommand) : null;
+                const scopes = (metadata.scopes ?? []) as unknown;
+
+                if (!serverUrl && !localCommand) throw new Error("Either serverUrl or localCommand is required");
+
+                await db.insert(mcpConnectionsTable).values({
+                    id: connectionId,
+                    workspaceId,
+                    name,
+                    serverUrl,
+                    localCommand,
+                    scopes: Array.isArray(scopes) ? scopes : [],
+                    status: "active",
+                    lastError: null,
+                    updatedAt: new Date(),
+                });
+
+                broadcastEvent(companyId, {
+                    type: "workspace.mcp_connection_created",
+                    data: { workspaceId, connectionId },
+                });
+                break;
+            }
+
+            case "workspace.mcp.update": {
+                const { mcpConnectionsTable } = await import("@workspace/db");
+                const connectionId = String(metadata.connectionId);
+                const workspaceId = String(metadata.workspaceId);
+                const patch = (metadata.patch ?? {}) as Record<string, unknown>;
+                await db
+                    .update(mcpConnectionsTable)
+                    .set({ ...patch, updatedAt: new Date() })
+                    .where(eq(mcpConnectionsTable.id, connectionId));
+
+                broadcastEvent(companyId, {
+                    type: "workspace.mcp_connection_updated",
+                    data: { workspaceId, connectionId },
+                });
+                break;
+            }
+
+            case "workspace.mcp.delete": {
+                const { mcpConnectionsTable } = await import("@workspace/db");
+                const connectionId = String(metadata.connectionId);
+                const workspaceId = String(metadata.workspaceId);
+                await db.delete(mcpConnectionsTable).where(eq(mcpConnectionsTable.id, connectionId));
+
+                broadcastEvent(companyId, {
+                    type: "workspace.mcp_connection_deleted",
+                    data: { workspaceId, connectionId },
+                });
+                break;
+            }
+
+            case "workflow.step.approve": {
+                const { workflowRunsTable, workflowStepsTable } = await import("@workspace/db");
+                const workflowRunId = String(metadata.workflowRunId);
+                const stepId = String(metadata.stepId);
+
+                await db.update(workflowStepsTable).set({ status: "completed", completedAt: new Date() }).where(eq(workflowStepsTable.id, stepId));
+                await db.update(workflowRunsTable).set({ status: "running" }).where(eq(workflowRunsTable.id, workflowRunId));
+
+                broadcastEvent(companyId, { type: "workflow.resumed", data: { workflowRunId } });
+                break;
+            }
 
             default:
                 break;

@@ -52,22 +52,36 @@ async function runHyperSwarm() {
         leaderAgentId,
         taskDescription,
     );
-    console.log('✅ Proposed:', proposeResult.message);
+    console.log(
+        '✅ Proposed swarm:',
+        proposeResult.swarmId,
+        `phase=${proposeResult.phase}`,
+        `estimatedCostUsd=${proposeResult.estimatedCostUsd}`,
+    );
 
     // 2️⃣ Approve (auto‑approve for hyper‑swarm)
-    const approveResult = await swarmEngine.approveSwarm(
-        proposeResult.swarmId,
-        leaderAgentId,
-    );
-    console.log('✅ Approved:', approveResult.message);
+    if (proposeResult.needsApproval) {
+        const approveResult = await swarmEngine.approveSwarm(
+            proposeResult.swarmId,
+            leaderAgentId,
+        );
+        console.log(
+            '✅ Approved swarm:',
+            approveResult.swarmId,
+            `phase=${approveResult.phase}`,
+            `approvedBy=${approveResult.approvedBy}`,
+        );
+    } else {
+        console.log('✅ Approval skipped: swarm is already pending execution.');
+    }
 
     // 3️⃣ Spawn
     const spawnResult = await swarmEngine.spawnSwarm(proposeResult.swarmId);
-    console.log('✅ Spawned agents:', spawnResult.spawnedAgents.length);
+    console.log('✅ Spawned agents:', spawnResult.agentCount);
 
     // 4️⃣ Execute (parallel execution handled inside SwarmEngine)
     const execResult = await swarmEngine.executeSwarm(proposeResult.swarmId);
-    console.log('✅ Execution completed. Results count:', execResult.executionResults.length);
+    console.log('✅ Execution completed. Agents run:', execResult.agentCount);
 
     // 5️⃣ Synthesize
     const synthResult = await swarmEngine.synthesizeSwarm(proposeResult.swarmId);

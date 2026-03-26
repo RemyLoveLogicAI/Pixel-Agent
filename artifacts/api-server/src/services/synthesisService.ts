@@ -1,6 +1,6 @@
 import { db, swarmAgentsTable } from '@workspace/db';
 import { eq, and } from 'drizzle-orm';
-import { sandboxService } from './sandboxService';
+import { sandboxService } from './sandboxService.js';
 
 export type SynthesisResult = {
     swarmId: string;
