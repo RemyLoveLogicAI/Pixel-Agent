@@ -5,19 +5,36 @@ import { ApiError } from "../middlewares/error-handler.js";
 
 const router = Router();
 
+const GOVERNANCE_STATUSES = ["pending", "approved", "rejected", "expired"] as const;
+
 router.get("/companies/:companyId/governance", async (req, res, next) => {
   try {
+    const { status } = req.query;
+    if (status && typeof status === "string") {
+      if (!GOVERNANCE_STATUSES.includes(status as (typeof GOVERNANCE_STATUSES)[number])) {
+        return next(
+          new ApiError(
+            400,
+            `Invalid status "${status}". Allowed values: ${GOVERNANCE_STATUSES.join(", ")}`,
+          ),
+        );
+      }
+    }
+
+    const conditions = [eq(governanceRequestsTable.companyId, req.params.companyId)];
+    if (status && typeof status === "string") {
+      conditions.push(
+        eq(governanceRequestsTable.status, status as (typeof GOVERNANCE_STATUSES)[number]),
+      );
+    }
+
     const requests = await db
       .select()
       .from(governanceRequestsTable)
-      .where(eq(governanceRequestsTable.companyId, req.params.companyId))
+      .where(and(...conditions))
       .orderBy(governanceRequestsTable.createdAt);
 
-    const filtered = req.query.status
-      ? requests.filter((r) => r.status === req.query.status)
-      : requests;
-
-    res.json(filtered);
+    res.json(requests);
   } catch (err) {
     next(err);
   }

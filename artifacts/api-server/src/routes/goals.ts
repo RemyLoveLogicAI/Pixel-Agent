@@ -5,6 +5,20 @@ import { ApiError } from "../middlewares/error-handler.js";
 
 const router = Router();
 
+// Fields that callers are allowed to update on a goal.
+// Excludes id, companyId, completedAt (set automatically), and timestamps.
+const patchGoalSchema = insertGoalSchema
+  .pick({
+    title: true,
+    description: true,
+    status: true,
+    priority: true,
+    assignedTo: true,
+    parentId: true,
+    dueAt: true,
+  })
+  .partial();
+
 router.get("/companies/:companyId/goals", async (req, res, next) => {
   try {
     const goals = await db
@@ -87,14 +101,20 @@ router.patch("/companies/:companyId/goals/:goalId", async (req, res, next) => {
       );
     if (!existing) return next(new ApiError(404, "Goal not found"));
 
-    const updateData = { ...req.body, updatedAt: new Date() };
-    if (req.body.status === "completed" && !existing.completedAt) {
-      updateData.completedAt = new Date();
+    const parsed = patchGoalSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return next(new ApiError(400, parsed.error.message));
     }
 
     const [updated] = await db
       .update(goalsTable)
-      .set(updateData)
+      .set({
+        ...parsed.data,
+        updatedAt: new Date(),
+        ...(parsed.data.status === "completed" && !existing.completedAt
+          ? { completedAt: new Date() }
+          : {}),
+      })
       .where(eq(goalsTable.id, req.params.goalId))
       .returning();
     res.json(updated);

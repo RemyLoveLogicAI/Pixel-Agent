@@ -163,9 +163,11 @@ export class HeartbeatRunner {
                 );
         }
 
+        const finalStatus = failed > 0 ? 'partial_failure' : 'completed';
+
         return {
             runId,
-            status: run.status,
+            status: finalStatus,
             agentsTotal: activeAgents.length,
             agentsSucceeded: succeeded,
             agentsFailed: failed,

@@ -36,10 +36,14 @@ export class AgentPool {
                 }
                 const item = items[itemIndex];
 
+                let timeoutId: ReturnType<typeof setTimeout> | undefined;
                 try {
-                    const timeoutPromise = new Promise<never>((_, reject) =>
-                        setTimeout(() => reject(new Error('Timeout')), timeout)
-                    );
+                    const timeoutPromise = new Promise<never>((_, reject) => {
+                        timeoutId = setTimeout(
+                            () => reject(new Error(`Task timeout after ${timeout}ms`)),
+                            timeout,
+                        );
+                    });
                     const result = await Promise.race([
                         processor(item),
                         timeoutPromise,
@@ -48,6 +52,8 @@ export class AgentPool {
                 } catch (error) {
                     results[itemIndex] = null;
                     console.error(`Error processing item at index ${itemIndex}:`, error);
+                } finally {
+                    clearTimeout(timeoutId);
                 }
             }
         };
