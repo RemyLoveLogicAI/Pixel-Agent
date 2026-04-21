@@ -30,7 +30,7 @@ router.get("/companies/:companyId/clipboard", async (req, res, next) => {
             eq(agentTasksTable.companyId, companyId),
             // active tasks only
             // @ts-expect-error drizzle enum narrowing
-            notInArray(agentTasksTable.status, ["completed", "failed"]),
+            notInArray(agentTasksTable.status, ["done", "failed", "cancelled"]),
           ),
         )
         .orderBy(desc(agentTasksTable.updatedAt))
