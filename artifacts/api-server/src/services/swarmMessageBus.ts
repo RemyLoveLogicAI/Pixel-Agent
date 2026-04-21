@@ -50,7 +50,12 @@ export class SwarmMessageBus {
         const key = this.key(swarmId, topic);
         if (!this.subscribers.has(key)) this.subscribers.set(key, new Set());
         this.subscribers.get(key)!.add(handler);
-        return () => this.subscribers.get(key)?.delete(handler);
+        return () => {
+            const handlers = this.subscribers.get(key);
+            if (!handlers) return;
+            handlers.delete(handler);
+            if (handlers.size === 0) this.subscribers.delete(key);
+        };
     }
 
     async getMessages(swarmId: string, topic?: string): Promise<SwarmMessage[]> {
