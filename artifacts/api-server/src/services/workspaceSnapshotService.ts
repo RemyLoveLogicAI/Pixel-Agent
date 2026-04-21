@@ -52,18 +52,28 @@ export async function restoreWorkspaceSnapshotArchive(params: {
   const parentDir = path.dirname(params.fsRoot);
   const baseName = path.basename(params.fsRoot);
   const backupPath = path.join(parentDir, `${baseName}__backup_${crypto.randomUUID()}`);
+  const hadExistingWorkspace = await pathExists(params.fsRoot);
 
   // Move current workspace aside, then re-create the fsRoot and untar.
-  if (await pathExists(params.fsRoot)) {
+  if (hadExistingWorkspace) {
     await fs.rename(params.fsRoot, backupPath);
   }
   await ensureDir(params.fsRoot);
 
-  await execFileAsync("tar", ["-xzf", params.archivePath, "-C", params.fsRoot]);
+  try {
+    await execFileAsync("tar", ["-xzf", params.archivePath, "-C", params.fsRoot]);
 
-  // Ensure snapshots dir exists after restore.
-  await ensureDir(path.join(params.fsRoot, ".snapshots"));
+    // Ensure snapshots dir exists after restore.
+    await ensureDir(path.join(params.fsRoot, ".snapshots"));
+  } catch (error) {
+    await fs.rm(params.fsRoot, { recursive: true, force: true });
 
+    if (hadExistingWorkspace && (await pathExists(backupPath))) {
+      await fs.rename(backupPath, params.fsRoot);
+    }
+
+    throw error;
+  }
   return { backupPath };
 }
 
