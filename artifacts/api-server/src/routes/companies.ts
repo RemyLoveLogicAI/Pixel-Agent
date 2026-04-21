@@ -51,9 +51,15 @@ router.patch("/companies/:companyId", async (req, res, next) => {
       .where(eq(companiesTable.id, req.params.companyId));
     if (!existing) return next(new ApiError(404, "Company not found"));
 
-    const [updated] = await db
-      .update(companiesTable)
-      .set({ ...req.body, updatedAt: new Date() })
+    const updateCompanySchema = insertCompanySchema.partial().omit({ id: true });
+        const updatePayloadResult = updateCompanySchema.safeParse(req.body);
+        if (!updatePayloadResult.success) {
+          return next(new ApiError(400, updatePayloadResult.error.message));
+        }
+
+        const [updated] = await db
+          .update(companiesTable)
+          .set({ ...updatePayloadResult.data, updatedAt: new Date() })
       .where(eq(companiesTable.id, req.params.companyId))
       .returning();
     res.json(updated);
