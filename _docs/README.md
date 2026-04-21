@@ -1,138 +1,113 @@
-# 📚 Pixel-Agent Documentation
+<details><summary>Directory Metadata (for smart change detection)</summary>
 
-Welcome to the complete documentation for this repository. This documentation is automatically generated and maintained by Woden Docbot.
-
-![Health: Healthy](https://img.shields.io/badge/Health-Healthy-green) ![Files Documented: 1](https://img.shields.io/badge/Files_Documented-1-blue) ![Coverage: 100](https://img.shields.io/badge/Coverage-100-green) ![Last Updated: 2026-03-15](https://img.shields.io/badge/Last_Updated-2026--03--15-gray)
-
-## 🔗 Quick Links
-
-[📂 artifacts](./artifacts/README.md)
-[📋 Dependencies](./DEPENDENCIES.md)
-
-
----
-
-> An AI-assisted documentation platform that ingests, indexes, and serves organizational knowledge to developers and support teams via conversational and search interfaces.
-
-
-
-## 📖 Overview
-
-DocBot is an integrated documentation and knowledge platform designed to centralize, process, and surface organizational content for fast, accurate developer and support workflows. It automates ingestion from common sources (Markdown repositories, Confluence, PDFs), normalizes and enriches content with metadata and semantic embeddings, and stores both raw and processed artifacts for retrieval. The platform exposes both a conversational assistant for natural language Q&A and a faceted search interface for targeted discovery.
-
-Architecturally, DocBot emphasizes modularity and observability. Content ingestion pipelines run asynchronously to extract, preprocess, and embed documents. A document store holds canonical artifacts while a vector index supports semantic search. API and web portal layers provide secure access and developer tooling. The design focuses on minimizing latency for interactive queries, ensuring data freshness through incremental ingestion, and providing role-based access control to protect sensitive information.
-
-
-### 🧩 Key Components
-
-| Component | Purpose | Technologies |
-| --- | --- | --- |
-| **Ingestion Pipeline** | Collects documents from repositories, cloud storage, and uploads; normalizes formats, extracts text and metadata, and partitions content for embedding. | `Python`, `Airflow`, `Azure Blob Storage` |
-| **Embedding Service** | Generates and stores semantic embeddings for document chunks to enable vector similarity search and semantic retrieval. | `OpenAI/embedding models`, `Python`, `FastAPI` |
-| **Vector Search Index** | Stores embeddings and executes nearest-neighbor queries for semantic retrieval used by the assistant and search UI. | `Milvus`, `Faiss`, `Weaviate` |
-| **Document Store** | Holds source documents and processed fragments with metadata, versioning, and access control. | `PostgreSQL`, `Azure Blob Storage` |
-| **API & Auth Service** | Exposes REST/GraphQL endpoints for search, QA, and admin operations; enforces authentication and RBAC. | `FastAPI`, `OAuth2`, `JWT` |
-| **Web Portal & Chat UI** | User-facing interfaces for conversational access, guided search, and documentation browsing with feedback and annotation features. | `React`, `TypeScript`, `Tailwind CSS` |
-
-
-
-
-**Component Architecture:**
-
-```mermaid
-graph TD
-    C0[Ingestion Pipeline]
-    C1[Embedding Service]
-    C2[Vector Search Index]
-    C3[Document Store]
-    C4[API & Auth Service]
-    C5[Web Portal & Chat UI]
-    C0 --> C1
-    C1 --> C2
-    C2 --> C3
+```json
+{
+  "doc_type": "directory_index",
+  "directory_path": "_docs",
+  "directory_hash": "dd31b6ff0129504a97655b2dcfb0397542c513754b606d749ee551a859f717c3",
+  "file_count": 5,
+  "file_hashes": {
+    "DEPENDENCIES": "51a6dd76f87591fa",
+    "contributor-onboarding": "e11d677e94a6f458",
+    "principal-onboarding": "bdd10d697b60255d",
+    "val-foundation": "ae3540b969aa5ada",
+    "validation-contracts-ui-integration": "14eaa20f94f74617"
+  }
+}
 ```
 
-### 🏗️ Architecture
+</details>
 
-Modular, cloud-native architecture combining asynchronous ingestion pipelines, a document store with a vector index for semantic search, and API/web frontends. Services are containerized and can run serverless or in Kubernetes with separate components for ingestion, embedding, search, and UI.
-
-### 💡 Use Cases
-
-- ✦ Developer onboarding and ad-hoc Q&A over internal docs and API references.
-- ✦ Support agent assistant to surface troubleshooting steps and runbooks during customer incidents.
-- ✦ Knowledge base search with semantic ranking for improved discovery across unstructured content.
-
-
-
-### 🔧 Technologies
-
-
-**Languages:** ![Python: ](https://img.shields.io/badge/Python--blue)
-
-**Frameworks:** ![FastAPI: ](https://img.shields.io/badge/FastAPI--blue) ![React: ](https://img.shields.io/badge/React--blue)
-
-**Databases:** ![PostgreSQL: ](https://img.shields.io/badge/PostgreSQL--blue)
-![OpenAI embeddings: ](https://img.shields.io/badge/OpenAI_embeddings--blue) ![Milvus: ](https://img.shields.io/badge/Milvus--blue) ![Docker: ](https://img.shields.io/badge/Docker--blue) ![Kubernetes: ](https://img.shields.io/badge/Kubernetes--blue)
-
-### 📦 External Dependencies
-
-The following external packages are used across the project:
-
-- `Azure Blob Storage`
-- `Milvus`
-- `OAuth provider (e.g., Azure AD)`
-- `OpenAI API`
-- `PostgreSQL`
-- `Tika`
-
-
+[Documentation Home](README.md)
 
 ---
 
-## 📑 Documentation Sections
+# 📁 _docs
 
-### [artifacts](./artifacts/README.md)
-Central storage for build and source artifacts related to documented components, serving as the artifact documentation index for the repository.
+> **Purpose:** Holds project-level documentation, onboarding guides, and validation-related reference materials used by contributors and implementers.
+> 
+
+![Organization: Hierarchical](https://img.shields.io/badge/Organization-Hierarchical-blue)
+
+## 📑 Table of Contents
 
 
-This directory holds documented artifacts and artifact-related documentation for components produced by the repository.
-
----
-
-## 📊 Documentation Statistics
-
-- **Files Documented**: 1
-- **Directories**: 4
-- **Coverage**: 100%
-- **Last Updated**: 2026-03-15
-
----
-
-## 🧭 How to Navigate
-
-> ℹ️ **INFO**
-> Each directory has its own README.md with detailed information about that section. Use the breadcrumb navigation at the top of each page to navigate back to parent directories.
-
-### Navigation Features
-
-- **Breadcrumbs** - At the top of each page, showing your current location
-- **Directory READMEs** - Each folder has a comprehensive overview
-- **File Documentation** - Click through to individual file documentation
-- **Search** - Use GitHub's search or your IDE's search functionality
+- [Overview](#overview)
+- [Subdirectories](#subdirectories)
+- [All Files](#all-files)
+- [Dependencies](#dependencies)
+- [Architecture Notes](#architecture-notes)
 
 ---
 
-## 🤖 About Woden DocBot
+## Overview
 
-This documentation is automatically generated and kept up-to-date by Woden DocBot, an AI-powered documentation assistant. DocBot analyzes code on every pull request and updates documentation to reflect changes.
+This _docs directory collects documentation files that support contributor and principal onboarding, a dependency manifest, and validation guidance. At the root level there are five documented files: DEPENDENCIES (a manifest-style file listing dependency information), contributor-onboarding, principal-onboarding, val-foundation, and validation-contracts-ui-integration. Each of these files provides a focused piece of project documentation: onboarding guidance for different audiences and validation-related reference material. The explicit purposes of the individual files are limited to their filenames and implied roles by name.
 
-### Features
+Below the root documentation, the directory contains three subdirectories that organize additional documentation and artifacts. The agentos/ subdirectory contains five documented files related to agentos (per its description). The contracts/ subdirectory contains a single documented file related to contracts. The artifacts/ subdirectory holds build and implementation artifacts for components and is described as the primary location for component source artifacts such as the api-server implementation; it is organized into further subdirectories and contains no files at the repository root level. Together, the root files and subdirectories provide onboarding and validation content alongside implementation artifacts and contract documentation, forming a documentation surface that supports both contributors and implementers in understanding dependencies, validation foundations, and integration points.
 
-- **Automatic Updates** - Documentation updates on every PR
-- **Comprehensive Coverage** - Files, functions, classes, and directories
-- **Smart Navigation** - Breadcrumbs, related files, and parent links
-- **AI-Powered** - Uses Azure GPT models for intelligent documentation generation
+
+### File Organization
+
+Root-level documentation files present onboarding and validation documents by audience and topic. Related code or implementation artifacts and additional documented files are organized into subdirectories (agentos/, contracts/, artifacts/) so that contextual documentation (root files) is separated from component-specific artifacts and detailed files contained in subfolders.
+
+## 📂 Subdirectories
+
+This directory contains the following subdirectories:
+
+### [📁 agentos](./agentos/README.md)
+
+**Purpose:** Contains 5 documented files related to agentos (component-specific documentation).
+
+![Files: 5](https://img.shields.io/badge/Files-5-blue)
 
 ---
 
-*Generated by Woden DocBot for Pixel-Agent*
+### [📁 contracts](./contracts/README.md)
+
+**Purpose:** Contains 1 documented file related to contracts (contract documentation).
+
+![Files: 1](https://img.shields.io/badge/Files-1-blue)
+
+---
+
+### [📁 artifacts](./artifacts/README.md)
+
+**Purpose:** Holds build and implementation artifacts for components; primary location for component source artifacts such as the api-server implementation.
+
+![Files: 0](https://img.shields.io/badge/Files-0-blue)
+
+---
+## 📂 All Files
+
+| File | Type |
+| --- | --- |
+| [DEPENDENCIES](./DEPENDENCIES.md) | 📄 File |
+| [contributor-onboarding](./contributor-onboarding.md) | 📄 File |
+| [principal-onboarding](./principal-onboarding.md) | 📄 File |
+| [val-foundation](./val-foundation.md) | 📄 File |
+| [validation-contracts-ui-integration](./validation-contracts-ui-integration.md) | 📄 File |
+
+## Dependencies
+
+### Internal Dependencies
+
+| Dependency | Usage |
+| --- | --- |
+| `DEPENDENCIES` | Acts as the manifest of dependency information referenced by documentation and implementers within this directory. |
+
+## Architecture Notes
+
+- Documentation is separated between root-level, audience-focused files and component-specific material stored in subdirectories to keep high-level guidance distinct from implementation artifacts.
+- The artifacts/ subdirectory is the designated location for build and implementation artifacts and is organized into further subdirectories rather than keeping implementation files at the repository root level.
+
+---
+
+## Navigation
+
+**↑ Parent Directory:** [Go up](../README.md)
+**🔗 Related:** [agentos](./agentos/README.md) • [contracts](./contracts/README.md) • [artifacts](./artifacts/README.md)
+
+---
+
+*Generated by Woden Docbot*
