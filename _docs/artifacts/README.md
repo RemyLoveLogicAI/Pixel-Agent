@@ -4,7 +4,7 @@
 
 # 📁 artifacts
 
-> **Purpose:** Central storage for build and source artifacts related to documented components, serving as the artifact documentation index for the repository.
+> **Purpose:** Holds build and implementation artifacts for components; primary location for component source artifacts such as the api-server implementation.
 > 
 
 ![Organization: Hierarchical](https://img.shields.io/badge/Organization-Hierarchical-blue)
@@ -20,14 +20,14 @@
 
 ## Overview
 
-This directory holds documented artifacts and artifact-related documentation for components produced by the repository. At the repository root level there are no files in this directory; instead, artifacts and their source documentation are organized into subdirectories. The README index in this directory acts as the central guide explaining what subdirectories contain and where to find component entry points and source artifacts.
+The artifacts directory is the repository location for component artifacts and implementation sources that are part of the deliverable for this project. At the repository root level there are no files in this directory; instead the actual implementation artifacts are organized into subdirectories. Each subdirectory is dedicated to a specific component and contains the component's source layout and entry points.
 
-Currently the directory contains a single subdirectory, api-server/, which is the documentation/artifact location for the api-server component. The api-server/ subdirectory places its actual TypeScript source under a src/ subfolder and is documented to include a primary TypeScript entry file (src/app.ts). Together, this structure indicates that this artifacts directory is a hierarchical collection of per-component artifact folders: each subdirectory groups the files and metadata for a component and points developers to the component's source or primary artifact rather than storing those files at the artifacts root.
+Currently the directory contains an api-server subdirectory which hosts the api-server implementation artifacts. The api-server implementation is organized under a src/ folder and is described as containing a single TypeScript source file, app.ts, which serves as the main TypeScript application entry. Together, the subdirectories in artifacts represent component-specific code artifacts that other parts of the system will build, run, or package as part of their workflows. Developers should look into each component subdirectory (for example api-server/src/app.ts) to find the actual implementation entry points and source files for that component.
 
 
 ### File Organization
 
-Artifacts are grouped by component in subdirectories (feature/component-based grouping). The root of artifacts contains no files; each component's artifacts and source references live in its own subdirectory (for example api-server/ contains its src/ with the main TypeScript entry). This keeps component artifacts isolated and discoverable.
+There are no root-level files; artifacts are grouped by component in dedicated subdirectories (e.g., api-server/). Each component subdirectory contains a src/ tree with the component's implementation and a designated entry file (api-server/src/app.ts). This keeps component artifacts isolated and easy to locate.
 
 ## 📂 Subdirectories
 
@@ -35,15 +35,14 @@ This directory contains the following subdirectories:
 
 ### [📁 api-server](./api-server/README.md)
 
-**Purpose:** Contains the source artifact(s) and documentation for the api-server component; primary TypeScript application entry and source are located under src/, with src/app.ts identified as the main artifact.
+**Purpose:** Contains the source artifact(s) for the api-server component, specifically the TypeScript application entry in src/, and serves as the location for api-server implementation files.
 
-![Files: 0](https://img.shields.io/badge/Files-0-blue)
+![Files: 1](https://img.shields.io/badge/Files-1-blue)
 
 ---
 ## Architecture Notes
 
-- Artifacts are organized per-component in subdirectories, with the artifacts root acting as a registry/index rather than holding files itself.
-- Component main artifacts (for example api-server/src/app.ts) are kept inside the component subdirectory, maintaining isolation between artifacts.
+- Artifacts are organized per-component in subdirectories; implementation entry points are kept under a src/ tree rather than at the component root.
 
 ---
 
