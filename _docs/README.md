@@ -1,113 +1,115 @@
-<details><summary>Directory Metadata (for smart change detection)</summary>
+# 📚 Pixel-Agent Documentation
 
-```json
-{
-  "doc_type": "directory_index",
-  "directory_path": "_docs",
-  "directory_hash": "dd31b6ff0129504a97655b2dcfb0397542c513754b606d749ee551a859f717c3",
-  "file_count": 5,
-  "file_hashes": {
-    "DEPENDENCIES": "51a6dd76f87591fa",
-    "contributor-onboarding": "e11d677e94a6f458",
-    "principal-onboarding": "bdd10d697b60255d",
-    "val-foundation": "ae3540b969aa5ada",
-    "validation-contracts-ui-integration": "14eaa20f94f74617"
-  }
-}
+Welcome to the complete documentation for this repository. This documentation is automatically generated and maintained by Woden Docbot.
+
+![Health: Healthy](https://img.shields.io/badge/Health-Healthy-green) ![Files Documented: 13](https://img.shields.io/badge/Files_Documented-13-blue) ![Coverage: 100](https://img.shields.io/badge/Coverage-100-green) ![Last Updated: 2026-04-21](https://img.shields.io/badge/Last_Updated-2026--04--21-gray)
+
+## 🔗 Quick Links
+
+[📂 agentos](./agentos/README.md) | [📂 artifacts](./artifacts/README.md)
+[📋 Dependencies](./DEPENDENCIES.md)
+
+
+---
+
+> A component-focused repository that houses documentation and build artifacts, including a TypeScript api-server implementation.
+
+
+
+## 📖 Overview
+
+Pixel-Agent organizes deliverable components and their documentation in a single repository so developers can find implementation sources and supporting docs in one place. The repository separates documentation for the agentos project (under agentos) from concrete build and implementation artifacts (under artifacts). The artifacts area is organized into per-component subdirectories; each contains the component's source layout and entry points so other parts of a delivery pipeline can build, run, or package them.
+
+Currently the artifacts subtree includes an api-server implementation whose source entry is a TypeScript application file (api-server/src/app.ts). The agentos directory serves as the documentation surface for the project. Together these parts let contributors locate runtime entry points (api-server), understand project intent and usage via documentation (agentos), and treat each artifact subdirectory as a packaging/build unit within the repository.
+
+
+### 🧩 Key Components
+
+| Component | Purpose | Technologies |
+| --- | --- | --- |
+| **agentos** | Repository location for project documentation about agentos; provides descriptive and onboarding material for developers and contributors. | N/A |
+| **artifacts (api-server)** | Holds build and implementation artifacts for components. The api-server subdirectory contains the implementation source under src/ with app.ts as the main TypeScript application entry point; intended as the primary code artifact to be built, run, or packaged. | `TypeScript` |
+
+
+
+
+**Component Architecture:**
+
+```mermaid
+graph TD
+    C0[agentos]
+    C1[artifacts (api-server)]
+    C0 --> C1
 ```
 
-</details>
+### 🏗️ Architecture
 
-[Documentation Home](README.md)
+A component-oriented monorepo layout: documentation in a dedicated docs subtree and implementation artifacts organized into per-component subdirectories under artifacts; each component contains source and entry points for build/package workflows.
 
----
+### 💡 Use Cases
 
-# 📁 _docs
-
-> **Purpose:** Holds project-level documentation, onboarding guides, and validation-related reference materials used by contributors and implementers.
-> 
-
-![Organization: Hierarchical](https://img.shields.io/badge/Organization-Hierarchical-blue)
-
-## 📑 Table of Contents
+- ✦ Explore and maintain project documentation for agentos
+- ✦ Develop, build, and package the api-server implementation artifact
+- ✦ Onboard contributors by locating component source entry points and documentation in the repo
 
 
-- [Overview](#overview)
-- [Subdirectories](#subdirectories)
-- [All Files](#all-files)
-- [Dependencies](#dependencies)
-- [Architecture Notes](#architecture-notes)
+
+### 🔧 Technologies
+
+
+**Languages:** ![TypeScript: ](https://img.shields.io/badge/TypeScript--blue)
 
 ---
 
-## Overview
+## 📑 Documentation Sections
 
-This _docs directory collects documentation files that support contributor and principal onboarding, a dependency manifest, and validation guidance. At the root level there are five documented files: DEPENDENCIES (a manifest-style file listing dependency information), contributor-onboarding, principal-onboarding, val-foundation, and validation-contracts-ui-integration. Each of these files provides a focused piece of project documentation: onboarding guidance for different audiences and validation-related reference material. The explicit purposes of the individual files are limited to their filenames and implied roles by name.
-
-Below the root documentation, the directory contains three subdirectories that organize additional documentation and artifacts. The agentos/ subdirectory contains five documented files related to agentos (per its description). The contracts/ subdirectory contains a single documented file related to contracts. The artifacts/ subdirectory holds build and implementation artifacts for components and is described as the primary location for component source artifacts such as the api-server implementation; it is organized into further subdirectories and contains no files at the repository root level. Together, the root files and subdirectories provide onboarding and validation content alongside implementation artifacts and contract documentation, forming a documentation surface that supports both contributors and implementers in understanding dependencies, validation foundations, and integration points.
-
-
-### File Organization
-
-Root-level documentation files present onboarding and validation documents by audience and topic. Related code or implementation artifacts and additional documented files are organized into subdirectories (agentos/, contracts/, artifacts/) so that contextual documentation (root files) is separated from component-specific artifacts and detailed files contained in subfolders.
-
-## 📂 Subdirectories
-
-This directory contains the following subdirectories:
-
-### [📁 agentos](./agentos/README.md)
-
-**Purpose:** Contains 5 documented files related to agentos (component-specific documentation).
+### [agentos](./agentos/README.md)
+Documentation for agentos
 
 ![Files: 5](https://img.shields.io/badge/Files-5-blue)
 
----
+### [artifacts](./artifacts/README.md)
+Holds build and implementation artifacts for components; primary location for component source artifacts such as the api-server implementation.
 
-### [📁 contracts](./contracts/README.md)
 
-**Purpose:** Contains 1 documented file related to contracts (contract documentation).
-
-![Files: 1](https://img.shields.io/badge/Files-1-blue)
+The artifacts directory is the repository location for component artifacts and implementation sources that are part of the deliverable for this project.
 
 ---
 
-### [📁 artifacts](./artifacts/README.md)
+## 📊 Documentation Statistics
 
-**Purpose:** Holds build and implementation artifacts for components; primary location for component source artifacts such as the api-server implementation.
-
-![Files: 0](https://img.shields.io/badge/Files-0-blue)
-
----
-## 📂 All Files
-
-| File | Type |
-| --- | --- |
-| [DEPENDENCIES](./DEPENDENCIES.md) | 📄 File |
-| [contributor-onboarding](./contributor-onboarding.md) | 📄 File |
-| [principal-onboarding](./principal-onboarding.md) | 📄 File |
-| [val-foundation](./val-foundation.md) | 📄 File |
-| [validation-contracts-ui-integration](./validation-contracts-ui-integration.md) | 📄 File |
-
-## Dependencies
-
-### Internal Dependencies
-
-| Dependency | Usage |
-| --- | --- |
-| `DEPENDENCIES` | Acts as the manifest of dependency information referenced by documentation and implementers within this directory. |
-
-## Architecture Notes
-
-- Documentation is separated between root-level, audience-focused files and component-specific material stored in subdirectories to keep high-level guidance distinct from implementation artifacts.
-- The artifacts/ subdirectory is the designated location for build and implementation artifacts and is organized into further subdirectories rather than keeping implementation files at the repository root level.
+- **Files Documented**: 13
+- **Directories**: 5
+- **Coverage**: 100%
+- **Last Updated**: 2026-04-21
 
 ---
 
-## Navigation
+## 🧭 How to Navigate
 
-**↑ Parent Directory:** [Go up](../README.md)
-**🔗 Related:** [agentos](./agentos/README.md) • [contracts](./contracts/README.md) • [artifacts](./artifacts/README.md)
+> ℹ️ **INFO**
+> Each directory has its own README.md with detailed information about that section. Use the breadcrumb navigation at the top of each page to navigate back to parent directories.
+
+### Navigation Features
+
+- **Breadcrumbs** - At the top of each page, showing your current location
+- **Directory READMEs** - Each folder has a comprehensive overview
+- **File Documentation** - Click through to individual file documentation
+- **Search** - Use GitHub's search or your IDE's search functionality
 
 ---
 
-*Generated by Woden Docbot*
+## 🤖 About Woden DocBot
+
+This documentation is automatically generated and kept up-to-date by Woden DocBot, an AI-powered documentation assistant. DocBot analyzes code on every pull request and updates documentation to reflect changes.
+
+### Features
+
+- **Automatic Updates** - Documentation updates on every PR
+- **Comprehensive Coverage** - Files, functions, classes, and directories
+- **Smart Navigation** - Breadcrumbs, related files, and parent links
+- **AI-Powered** - Uses Azure GPT models for intelligent documentation generation
+
+---
+
+*Generated by Woden DocBot for Pixel-Agent*
