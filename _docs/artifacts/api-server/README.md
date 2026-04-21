@@ -4,7 +4,7 @@
 
 # 📁 api-server
 
-> **Purpose:** Contains the source artifact(s) for the api-server component, primarily the TypeScript application entry and its source files.
+> **Purpose:** Contains the source artifact(s) for the api-server component, specifically the TypeScript application entry in src/, and serves as the location for api-server implementation files.
 > 
 
 ![Organization: Hierarchical](https://img.shields.io/badge/Organization-Hierarchical-blue)
@@ -20,14 +20,14 @@
 
 ## Overview
 
-This directory is the documentation/artifact location for the api-server component. At the root level there are no files; the actual source is placed in the src/ subdirectory. The provided metadata indicates a single TypeScript source file (app.ts) exists under src/, identified as the main artifact for this component. No additional details about classes, functions or responsibilities inside app.ts are available in the metadata.
+This directory holds the implementation artifacts for the api-server component. At the root level there are no source files; instead the implementation is organized under the src/ subdirectory. The src/ directory contains a single TypeScript source file, app.ts, which is identified as the main TypeScript file for the api-server component. The provided metadata indicates app.ts is the primary artifact in this package and is the place to look for the core application logic for this component.
 
-The src/ subdirectory holds the implementation artifact for the api-server component. Together, the top-level directory and its src/ subdirectory form a clear separation between the empty root (which serves as the package/artifact holder) and the concrete TypeScript source. This directory is intended to represent the api-server portion of the system by housing its implementation file(s) and should be the place developers look for the component entry point and related source code for the server behavior. Metadata about tests, dependencies, and internal architecture is not present in the provided information.
+Overall, the directory functions as a focused container for the api-server's source code. Developers should treat src/ as the canonical location for editing, building, or inspecting the api-server implementation. Because there are no additional top-level files or sibling directories in this manifest, coordination with other parts of the repository will rely on references to this src/app.ts file as the api-server entry artifact.
 
 
 ### File Organization
 
-Source files are contained in a dedicated src/ subdirectory rather than at the repository root. The directory root contains no files; all implementation artifacts are placed under src/ to separate source from higher-level documentation or packaging artifacts.
+The repository uses a small hierarchical layout: the root of this directory delegates source code into a dedicated src/ subdirectory. All implementation artifacts for the api-server are placed under src/, centralizing TypeScript sources (noting there is a single app.ts at the root of src/). This keeps the directory focused and makes the entry point easy to locate.
 
 ## 📂 Subdirectories
 
@@ -42,7 +42,8 @@ This directory contains the following subdirectories:
 ---
 ## Architecture Notes
 
-- The directory is organized with source files in a src/ subdirectory; no further architectural details or patterns are specified in the provided metadata.
+- All source for the api-server is contained under src/, with a single TypeScript file (app.ts) designated as the component artifact in this directory manifest.
+- This directory does not include build, configuration, or dependency specification files; those are expected to be managed at repository-level locations.
 
 ---
 
