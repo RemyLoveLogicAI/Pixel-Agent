@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db, agentTasksTable, insertAgentTaskSchema } from "@workspace/db";
 import { ApiError } from "../middlewares/error-handler.js";
 
