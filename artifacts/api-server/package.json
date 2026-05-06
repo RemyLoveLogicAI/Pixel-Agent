@@ -16,7 +16,7 @@
     "cors": "^2",
     "drizzle-orm": "catalog:",
     "express": "^5",
-    "uuid": "^13.0.0"
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",
