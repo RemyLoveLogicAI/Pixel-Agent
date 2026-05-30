@@ -13,6 +13,7 @@ import { AgentPool } from './agentPool.js';
 import { synthesisService } from './synthesisService.js';
 import { swarmMessageBus } from './swarmMessageBus.js';
 import { broadcastEvent } from '../routes/events.js';
+import { getHermesBridge } from './hermesBridge.js';
 import {
     registry,
     swarmProposed,
@@ -43,6 +44,10 @@ function broadcastSwarmEvent(companyId: string, swarmId: string, phase: string, 
         type: 'swarm.phase_changed',
         data: { swarmId, phase, ...(extra as object ?? {}) },
     });
+
+    // Also emit to Hermes EventBus for pet state translation
+    const bridge = getHermesBridge(companyId);
+    bridge.emitSwarmPhaseChanged(swarmId, 'unknown', phase);
 }
 
 export class SwarmEngine {

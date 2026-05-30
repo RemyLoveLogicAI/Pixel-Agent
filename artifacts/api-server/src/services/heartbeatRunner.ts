@@ -10,6 +10,7 @@ import {
 } from '@workspace/db';
 import { eq, and, lte, or, isNull } from 'drizzle-orm';
 import { executeAgentHeartbeat } from './agentExecutor.js';
+import { getHermesBridge } from './hermesBridge.js';
 
 /** Wrap a promise with a hard timeout. */
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -226,6 +227,9 @@ export class HeartbeatRunner {
             .set({ status: 'thinking', updatedAt: new Date() })
             .where(eq(agentsTable.id, agent.id));
 
+        const bridge = getHermesBridge(agent.companyId);
+        bridge.emitAgentStateChanged(agent.id, agent.status, 'thinking', agent.speciesId);
+
         try {
             const result = await withTimeout(
                 executeAgentHeartbeat(agent, runId),
@@ -250,6 +254,8 @@ export class HeartbeatRunner {
                 })
                 .where(eq(agentsTable.id, agent.id));
 
+            bridge.emitAgentStateChanged(agent.id, 'thinking', 'idle', agent.speciesId);
+
             return {
                 agentId: agent.id,
                 status: 'succeeded',
@@ -269,6 +275,8 @@ export class HeartbeatRunner {
                 .update(agentsTable)
                 .set({ status: newStatus, updatedAt: new Date() })
                 .where(eq(agentsTable.id, agent.id));
+
+            bridge.emitAgentStateChanged(agent.id, 'thinking', newStatus, agent.speciesId);
 
             await this.writeToDLQ(runId, agent.id, errMsg, errStack);
 
