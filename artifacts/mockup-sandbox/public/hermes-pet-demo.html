@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hermes PetCanvas — District Scene Demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@19.1.0",
+      "react/jsx-runtime": "https://esm.sh/react@19.1.0/jsx-runtime",
+      "react-dom": "https://esm.sh/react-dom@19.1.0/client"
+    }
+  }
+  </script>
+  <script type="module">
+    import { createRoot } from "https://esm.sh/react-dom@19.1.0/client";
+    import { useState, useRef, useEffect, useCallback } from "react";
+    import React from "react";
+
+    // ── Constants ──────────────────────────────────────────────────────────────
+    const CHAR_MAP = {
+      B: "body", D: "bodyDark", E: "eye", K: "cheek", M: "mouth",
+      A: "antenna", S: "sparkle", F: "foot",
+    };
+    const DEFAULT_TIMING = {
+      idle: { frameDuration: 500, loop: true },
+      alert: { frameDuration: 180, loop: true },
+      talking: { frameDuration: 200, loop: true },
+      sleeping: { frameDuration: 800, loop: true },
+      happy: { frameDuration: 250, loop: true },
+      lookLeft: { frameDuration: 400, loop: false },
+      lookRight: { frameDuration: 400, loop: false },
+      jump: { frameDuration: 150, loop: false },
+    };
+
+    // ── FRYGAR .rpet data (embedded) ──────────────────────────────────────────
+    const FRYGAR = {"formatVersion":1,"id":"frygar","displayName":"Frygar","palette":{"body":"#E8745F","bodyDark":"#B8503D","eye":"#1A1A2E","cheek":"#FF9E8A","mouth":"#D42B2B","antenna":"#F5C84A","sparkle":"#F5F0E6","foot":"#C4613D"},"eyeRegion":{"leftEyeColumns":[4,6],"rightEyeColumns":[9,11],"eyeRows":[6,7],"leftSparkle":[5,7],"rightSparkle":[10,7]},"frames":{"idle":[["CCCCAACCCCAACCCC","CCCCCACCCCACCCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBEEEBBEEEBBCC","CCBBESEBBESEBBCC","CCBBBKBBBBKBBBCC","CCCBBBMMMMBBBCCC","CCCBBBBBBBBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCCFFCCCCFFCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"],["CCCCAACCCCAACCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBEEEBBEEEBBCC","CCBBESEBBESEBBCC","CCBBBKBBBBKBBBCC","CCCBBBMMMMBBBCCC","CCCBBBBBBBBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCCFFCCCCFFCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"],["CCCCAACCCCAACCCC","CCCCCACCCCACCCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBEEEBBEEEBBCC","CCBBESEBBESEBBCC","CCBBBKBBBBKBBBCC","CCCBBBMMMMBBBCCC","CCCBBBBBBBBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCCFFCCCCFFCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"],["CCCAACCCCCCAACCC","CCCCACCCCCCACCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBEEEBBEEEBBCC","CCBBESEBBESEBBCC","CCBBBKBBBBKBBBCC","CCCBBBMMMMBBBCCC","CCCBBBBBBBBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCCFFCCCCFFCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"]],"alert":[["CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC","CCCCCACCCCACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBEEEBBEEEBBCC","CCBBESEBBESEBBCC","CCBBBKBBBBKBBBCC","CCBBMMMMMMMMBBCC","CCBBBBBBBBBBBBCC","CCBBBBBBBBBBBBCC","CCCBBBBBBBBBBCCC","CCCCCDDBBDDCCCCC","CCCFFCCCCCCFFCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"],["CCCAACCCCCCAACCC","CCCCACCCCCCACCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBEEEBBEEEBBCC","CCBBESEBBESEBBCC","CCBBBKBBBBKBBBCC","CCCBBBMMMMBBBCCC","CCCBBBBBBBBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCCCFCCCCFCCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"],["CCCCAACCCCAACCCC","CCCCCACCCCACCCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBEEEBBEEEBBCC","CCBBESEBBESEBBCC","CCBBBKBBBBKBBBCC","CCCBBBMMMMBBBCCC","CCCBBBBBBBBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCCFFCCCCFFCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"]],"talking":[["CCCCAACCCCAACCCC","CCCCCACCCCACCCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBEEEBBEEEBBCC","CCBBESEBBESEBBCC","CCBBBKBBBBKBBBCC","CCCBBBMMMMBBBCCC","CCCBBBBBBBBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCCFFCCCCFFCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"],["CCCCAACCCCAACCCC","CCCCCACCCCACCCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBEEEBBEEEBBCC","CCBBESEBBESEBBCC","CCBBBKBBBBKBBBCC","CCCBBMMMMMMBBCCC","CCCBBBBBBBBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCCFFCCCCFFCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"],["CCCCAACCCCAACCCC","CCCCCACCCCACCCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBEEEBBEEEBBCC","CCBBESEBBESEBBCC","CCBBBKBBBBKBBBCC","CCCBBMMMMMMBBCCC","CCCBBBMMMMBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCCFFCCCCFFCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"],["CCCCAACCCCAACCCC","CCCCCACCCCACCCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBEEEBBEEEBBCC","CCBBESEBBESEBBCC","CCBBBKBBBBKBBBCC","CCCBBMMMMMMBBCCC","CCCBBBBBBBBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCCFFCCCCFFCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"]],"sleeping":[["CCCCAACCCCAACCCC","CCCCCACCCCACCCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBBBBBBBBBBBCC","CCBBDDDBBDDDBBCC","CCBBBKBBBBKBBBCC","CCCBBBMMMMBBBCCC","CCCBBBBBBBBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCCFFCCCCFFCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"],["CCCCCCCCCCCCCCCC","CCCCAACCCCAACCCC","CCCCCACCCCACCCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBBBBBBBBBBBCC","CCBBDDDBBDDDBBCC","CCBBBKBBBBKBBBCC","CCCBBBMMMMBBBCCC","CCCBBBBBBBBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCCFFCCCCFFCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"],["CCCCAACCCCAACCCC","CCCCCACCCCACCCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBBBBBBBBBBBCC","CCBBDDDBBDDDBBCC","CCBBBKBBBBKBBBCC","CCCBBBMMMMBBBCCC","CCCBBBBBBBBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCCFFCCCCFFCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"]],"happy":[["CCCCAACCCCAACCCC","CCCCCACCCCACCCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBEEEBBEEEBBCC","CCBBESEBBESEBBCC","CCBBBKBBBBKBBBCC","CCCBBMMMMMMBBCCC","CCCBBBBBBBBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCCFFCCCCFFCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"],["CCCAACCCCCCAACCC","CCCCACCCCCCACCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBEEEBBEEEBBCC","CCBBESEBBESEBBCC","CCBBBKBBBBKBBBCC","CCCBBMMMMMMBBCCC","CCCBBBBBBBBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCCCFCCCCFCCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"],["CCCCAACCCCAACCCC","CCCCCACCCCACCCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBEEEBBEEEBBCC","CCBBESEBBESEBBCC","CCBBBKBBBBKBBBCC","CCCBBMMMMMMBBCCC","CCCBBBBBBBBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCFFCCCCCCFFCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"]],"lookLeft":[["CCCCAACCCCAACCCC","CCCCCACCCCACCCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBEEEBBEEEBBCC","CCBBSEEBBSEEBBCC","CCBBBKBBBBKBBBCC","CCCBBBMMMMBBBCCC","CCCBBBBBBBBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCCFFCCCCFFCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"],["CCCAACCCCCCAACCC","CCCCACCCCCCACCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBEEEBBEEEBBCC","CCBBSEEBBSEEBBCC","CCBBBKBBBBKBBBCC","CCCBBBMMMMBBBCCC","CCCBBBBBBBBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCCFFCCCCFFCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"]],"lookRight":[["CCCCAACCCCAACCCC","CCCCCACCCCACCCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBEEEBBEEEBBCC","CCBBEESBBEESBBCC","CCBBBKBBBBKBBBCC","CCCBBBMMMMBBBCCC","CCCBBBBBBBBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCCFFCCCCFFCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"],["CCCAACCCCCCAACCC","CCCCACCCCCCACCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBEEEBBEEEBBCC","CCBBEESBBEESBBCC","CCBBBKBBBBKBBBCC","CCCBBBMMMMBBBCCC","CCCBBBBBBBBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCCFFCCCCFFCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"]],"jump":[["CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC","CCCCCACCCCACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBEEEBBEEEBBCC","CCBBESEBBESEBBCC","CCBBBKBBBBKBBBCC","CCCBBBMMMMBBBCCC","CCBBBBBBBBBBBBCC","CCCBBBBBBBBBBCCC","CCCCCDDBBDDCCCCC","CCCFFCCCCCCFFCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"],["CCCAACCCCCCAACCC","CCCCACCCCCCACCCC","CCCCCABBBBACCCCC","CCCCBBBBBBBBCCCC","CCCBBBBBBBBBBCCC","CCBBBBBBBBBBBBCC","CCBBEEEBBEEEBBCC","CCBBESEBBESEBBCC","CCBBBKBBBBKBBBCC","CCCBBBMMMMBBBCCC","CCCBBBBBBBBBBCCC","CCCCBBBBBBBBCCCC","CCCCCDDBBDDCCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC","CCCCCCCCCCCCCCCC"]]}};
+
+    // ── Scenarios ──────────────────────────────────────────────────────────────
+    const SCENARIOS = {
+      build: { label: "Build Mode", state: "talking", district: "The Hearthworks", scene: "build" },
+      alert: { label: "Raise Alert", state: "alert", district: "The Thresholds", scene: "alert" },
+      happy: { label: "Deliver", state: "happy", district: "Courier Lanes", scene: "deliver" },
+      sleep: { label: "Cool Down", state: "sleeping", district: "Repair Yard", scene: "rest" },
+      inspect: { label: "Inspect", state: "lookLeft", district: "The Stacks", scene: "inspect" },
+    };
+
+    // ── PetCanvas component ────────────────────────────────────────────────────
+    function PetCanvas({ pet, state = "idle", size = 256 }) {
+      const canvasRef = useRef(null);
+      const frameRef = React.useRef(0);
+      const lastTimeRef = React.useRef(0);
+      const sparkleRef = React.useRef({ x: 0, y: 0 });
+
+      const drawFrame = React.useCallback(() => {
+        const canvas = canvasRef.current;
+        if (!canvas || !pet) return;
+        const ctx = canvas.getContext("2d");
+        ctx.imageSmoothingEnabled = false;
+        const frames = pet.frames[state] || pet.frames.idle;
+        if (!frames?.length) return;
+        const frame = frames[Math.min(frameRef.current, frames.length - 1)];
+        ctx.clearRect(0, 0, 16, 16);
+        for (let r = 0; r < 16; r++) {
+          for (let c = 0; c < 16; c++) {
+            let ch = frame[r][c];
+            if (ch === "C") continue;
+            const slot = CHAR_MAP[ch];
+            if (!slot) continue;
+            ctx.fillStyle = pet.palette[slot];
+            ctx.fillRect(c, r, 1, 1);
+          }
+        }
+      }, [pet, state]);
+
+      React.useEffect(() => {
+        frameRef.current = 0;
+        lastTimeRef.current = 0;
+      }, [pet, state]);
+
+      React.useEffect(() => {
+        let id;
+        const loop = (ts) => {
+          if (!pet) return;
+          if (!lastTimeRef.current) lastTimeRef.current = ts;
+          const frames = pet.frames[state] || pet.frames.idle;
+          const timing = DEFAULT_TIMING[state] || DEFAULT_TIMING.idle;
+          if (ts - lastTimeRef.current >= timing.frameDuration) {
+            if (frameRef.current < frames.length - 1) frameRef.current++;
+            else if (timing.loop) frameRef.current = 0;
+            lastTimeRef.current = ts;
+          }
+          drawFrame();
+          id = requestAnimationFrame(loop);
+        };
+        id = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(id);
+      }, [pet, state, drawFrame]);
+
+      return React.createElement("canvas", {
+        ref: canvasRef, width: 16, height: 16,
+        style: { width: size, height: size, imageRendering: "pixelated" },
+      });
+    }
+
+    // ── App ────────────────────────────────────────────────────────────────────
+    function App() {
+      const [scenario, setScenario] = useState("build");
+      const s = SCENARIOS[scenario];
+
+      return React.createElement("div", { className: "min-h-screen bg-gray-950 text-white p-8" },
+        React.createElement("div", { className: "max-w-4xl mx-auto" },
+          React.createElement("h1", { className: "text-3xl font-bold mb-6" }, "Hermes PetCanvas Demo"),
+          React.createElement("div", { className: "flex gap-2 mb-8 flex-wrap" },
+            Object.entries(SCENARIOS).map(([key, val]) =>
+              React.createElement("button", {
+                key: key,
+                onClick: () => setScenario(key),
+                className: `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  key === scenario ? "bg-indigo-600" : "bg-gray-800 hover:bg-gray-700"
+                }`
+              }, val.label)
+            )
+          ),
+          React.createElement("div", { className: "bg-gray-900 rounded-2xl p-8 text-center" },
+            React.createElement("div", { className: "text-xs text-gray-500 mb-2" },
+              `District: ${s.district}  |  State: ${s.state}  |  Scene: ${s.scene}`
+            ),
+            React.createElement(PetCanvas, { pet: FRYGAR, state: s.state, size: 256 }),
+          )
+        )
+      );
+    }
+
+    createRoot(document.getElementById("root")).render(React.createElement(App));
+  </script>
+</body>
+</html>
