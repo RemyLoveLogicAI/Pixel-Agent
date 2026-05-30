@@ -24,7 +24,7 @@ const SPECIES: SpeciesSeed[] = [
     id: 'frygar',
     displayName: 'Frygar',
     role: 'fire',
-    rpetPath: path.join(__dirname, '../../../../../../hermes-harness/tests/fixtures/frygar.rpet'),
+    rpetPath: path.join(__dirname, 'fixtures/frygar.rpet'),
   },
 ];
 
@@ -45,7 +45,8 @@ async function seed() {
 
     // Load and validate .rpet
     const raw = fs.readFileSync(species.rpetPath, 'utf-8');
-    const rpetDef = loadRpet(raw);
+    const parsed = JSON.parse(raw);
+    const rpetDef = loadRpet(parsed);
 
     // Insert into species_catalog
     const [inserted] = await db
@@ -55,7 +56,7 @@ async function seed() {
         displayName: species.displayName,
         role: species.role,
         rpetVersion: rpetDef.formatVersion,
-        rpetContent: JSON.parse(raw),
+        rpetContent: parsed,
       })
       .returning();
 
