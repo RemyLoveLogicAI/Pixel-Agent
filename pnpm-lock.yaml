@@ -184,6 +184,9 @@ importers:
       '@hermes/api':
         specifier: workspace:*
         version: link:../../lib/integrations/hermes-api
+      '@hermes/core':
+        specifier: workspace:*
+        version: link:../../lib/integrations/hermes-core
       '@hermes/pets':
         specifier: workspace:*
         version: link:../../lib/integrations/hermes-pets

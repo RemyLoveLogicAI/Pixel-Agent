@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@hermes/api": "workspace:*",
+    "@hermes/core": "workspace:*",
     "@hermes/pets": "workspace:*",
     "@types/uuid": "^11.0.0",
     "@workspace/api-zod": "workspace:*",
