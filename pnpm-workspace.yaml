@@ -1,9 +1,15 @@
-
 packages:
   - artifacts/*
   - lib/*
   - lib/integrations/*
   - scripts
+
+allowBuilds:
+  '@swc/core': true
+  esbuild: true
+  msw: true
+  protobufjs: true
+  unrs-resolver: true
 
 autoInstallPeers: false
 
@@ -60,11 +66,6 @@ catalog:
 # ============================================================================
 minimumReleaseAge: 1440
 
-onlyBuiltDependencies:
-  - '@swc/core'
-  - esbuild
-  - msw
-  - unrs-resolver
 
 overrides:
   # replit uses linux-x64 only, we can exclude all other platforms
