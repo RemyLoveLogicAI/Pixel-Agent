@@ -82,7 +82,7 @@ export const rpetTimingSchema = z
 export type RpetTiming = z.infer<typeof rpetTimingSchema>;
 
 export const rpetDefinitionSchema = z.object({
-  formatVersion: z.literal(1),
+  formatVersion: z.number().min(1).lt(2),
   id: z.string().regex(/^[a-z0-9-]+$/, 'Must be kebab-case'),
   displayName: z.string().min(1),
   palette: rpetPaletteSchema,
