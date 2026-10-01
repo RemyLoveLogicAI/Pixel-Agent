@@ -16,6 +16,7 @@ import metricsRouter from "./metrics.js";
 import workspacesRouter from "./workspaces.js";
 import workflowsRouter from "./workflows.js";
 import clipboardRouter from "./clipboard.js";
+import hermesRouter from "./hermes.js";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(metricsRouter);
 router.use(workspacesRouter);
 router.use(workflowsRouter);
 router.use(clipboardRouter);
+router.use(hermesRouter);
 
 export default router;
