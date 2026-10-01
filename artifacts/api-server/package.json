@@ -9,6 +9,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@hermes/api": "workspace:*",
+    "@hermes/pets": "workspace:*",
     "@types/uuid": "^11.0.0",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",

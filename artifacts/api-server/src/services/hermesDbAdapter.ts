@@ -1,7 +1,7 @@
 // Drizzle-backed DbAdapter for @hermes/api.
 // This module lives in the Pixel-Agent context and bridges Hermes API routes to PostgreSQL.
 
-import { db, speciesCatalogTable, petInstancesTable, eq, and } from '@workspace/db';
+import { db, speciesCatalogTable, petInstancesTable, eq, and, type PetInstance } from '@workspace/db';
 import type { DbAdapter } from '@hermes/api';
 
 export function createDrizzleAdapter(): DbAdapter {
@@ -66,7 +66,7 @@ export function createDrizzleAdapter(): DbAdapter {
         const [updated] = await db
           .update(petInstancesTable)
           .set({
-            currentState: state,
+            currentState: state as PetInstance["currentState"],
             stateHistory: history,
             updatedAt: new Date(),
           })

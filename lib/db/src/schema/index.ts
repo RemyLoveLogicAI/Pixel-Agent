@@ -18,3 +18,4 @@ export * from "./workspace-snapshots";
 export * from "./workflow-runs";
 export * from "./workflow-steps";
 export * from "./mcp-connections";
+export * from "./hermes";
