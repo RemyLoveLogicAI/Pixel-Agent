@@ -228,7 +228,7 @@ export class HeartbeatRunner {
             .where(eq(agentsTable.id, agent.id));
 
         const bridge = getHermesBridge(agent.companyId);
-        bridge.emitAgentStateChanged(agent.id, agent.status, 'thinking', agent.speciesId);
+        bridge.emitAgentStateChanged(agent.id, agent.status, 'thinking');
 
         try {
             const result = await withTimeout(
@@ -254,7 +254,7 @@ export class HeartbeatRunner {
                 })
                 .where(eq(agentsTable.id, agent.id));
 
-            bridge.emitAgentStateChanged(agent.id, 'thinking', 'idle', agent.speciesId);
+            bridge.emitAgentStateChanged(agent.id, 'thinking', 'idle');
 
             return {
                 agentId: agent.id,
@@ -276,7 +276,7 @@ export class HeartbeatRunner {
                 .set({ status: newStatus, updatedAt: new Date() })
                 .where(eq(agentsTable.id, agent.id));
 
-            bridge.emitAgentStateChanged(agent.id, 'thinking', newStatus, agent.speciesId);
+            bridge.emitAgentStateChanged(agent.id, 'thinking', newStatus);
 
             await this.writeToDLQ(runId, agent.id, errMsg, errStack);
 

@@ -22,7 +22,7 @@ export class HermesBridge {
   constructor(config: HermesBridgeConfig) {
     this.companyId = config.companyId;
     this.bus = new EventBus();
-    this.stateMachine = new StateMachine(this.bus);
+    this.stateMachine = new StateMachine({ bus: this.bus });
   }
 
   /**
