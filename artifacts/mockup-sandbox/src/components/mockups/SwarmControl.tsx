@@ -1,5 +1,4 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 type SwarmPhase =
   | "proposed"
@@ -112,7 +111,7 @@ export default function SwarmControl() {
               const isDone = pc.step < currentStep;
               return (
                 <div key={phase} className="flex items-center flex-1">
-                  <div className={`flex flex-col items-center flex-shrink-0`}>
+                  <div className={'flex flex-col items-center flex-shrink-0'}>
                     <div
                       className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
                         isActive

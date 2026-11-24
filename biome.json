@@ -14,16 +14,31 @@
     "enabled": true,
     "rules": {
       "recommended": true,
+      "a11y": {
+        "useButtonType": "warn",
+        "useFocusableInteractive": "warn",
+        "useSemanticElements": "warn"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "warn"
+      },
+      "complexity": {
+        "noForEach": "warn"
+      },
       "correctness": {
         "noUnusedVariables": "warn",
-        "noUnusedImports": "warn"
+        "noUnusedImports": "warn",
+        "useExhaustiveDependencies": "warn"
       },
       "style": {
         "useConst": "error",
-        "noVar": "error"
+        "noVar": "error",
+        "noNonNullAssertion": "warn"
       },
       "suspicious": {
-        "noConsoleLog": "warn"
+        "noConsoleLog": "warn",
+        "noExplicitAny": "warn",
+        "noArrayIndexKey": "warn"
       }
     }
   },
@@ -40,7 +55,8 @@
       "node_modules/**",
       "dist/**",
       ".wrangler/**",
-      "coverage/**"
+      "coverage/**",
+      "my-new-app/**"
     ]
   }
 }

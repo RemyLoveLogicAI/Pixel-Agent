@@ -1,5 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, } from "@/components/ui/card";
 
 type RequestType = "hire" | "fire" | "budget_override" | "swarm_approval" | "escalation" | "tool_access" | "strategy_change";
 type RequestStatus = "pending" | "approved" | "rejected" | "expired";

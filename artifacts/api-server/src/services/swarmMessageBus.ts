@@ -31,7 +31,7 @@ export class SwarmMessageBus {
     subscribe(swarmId: string, topic: string, handler: Handler): () => void {
         const key = this.key(swarmId, topic);
         if (!this.subscribers.has(key)) this.subscribers.set(key, new Set());
-        this.subscribers.get(key)!.add(handler);
+        this.subscribers.get(key)?.add(handler);
         return () => this.subscribers.get(key)?.delete(handler);
     }
 

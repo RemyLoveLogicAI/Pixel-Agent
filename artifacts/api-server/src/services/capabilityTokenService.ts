@@ -134,7 +134,7 @@ export class CapabilityTokenService {
         for (const token of active) {
             const tokenScopes = (token.scopes as string[]) ?? [];
             const granted = tokenScopes.some(
-                s => scope === s || scope.startsWith(s + "."),
+                s => scope === s || scope.startsWith(`${s}.`),
             );
             if (granted) return { allowed: true, tokenId: token.id };
         }

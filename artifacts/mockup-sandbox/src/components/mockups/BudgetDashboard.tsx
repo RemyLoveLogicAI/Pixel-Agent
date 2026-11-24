@@ -39,7 +39,7 @@ function progressColor(pct: number) {
 
 export default function BudgetDashboard() {
   const totalMonthly = agentBudgets.reduce((s, a) => s + a.monthlyUsd, 0);
-  const totalUsed = agentBudgets.reduce((s, a) => s + a.usedUsd, 0);
+  const _totalUsed = agentBudgets.reduce((s, a) => s + a.usedUsd, 0);
   const companyMonthly = 5000;
   const companyUsed = 1840;
   const companyPct = Math.round((companyUsed / companyMonthly) * 100);

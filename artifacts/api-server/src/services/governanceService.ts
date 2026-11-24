@@ -1,4 +1,4 @@
-import { db, governanceRequestsTable, agentsTable, companiesTable, capabilityTokensTable } from "@workspace/db";
+import { db, governanceRequestsTable, agentsTable, companiesTable, type capabilityTokensTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { capabilityTokenService } from "./capabilityTokenService.js";
 import { hierarchyService } from "./hierarchyService.js";
@@ -68,7 +68,7 @@ export class GovernanceService {
      */
     async approveRequest(
         requestId: string,
-        decidedBy: string = "human",
+        decidedBy = "human",
         note?: string
     ): Promise<typeof governanceRequestsTable.$inferSelect> {
         const [updated] = await db
@@ -96,7 +96,7 @@ export class GovernanceService {
      */
     async rejectRequest(
         requestId: string,
-        decidedBy: string = "human",
+        decidedBy = "human",
         note?: string
     ): Promise<typeof governanceRequestsTable.$inferSelect> {
         const [updated] = await db
@@ -203,7 +203,7 @@ export class GovernanceService {
      * Expire old pending requests
      */
     async expirePendingRequests(): Promise<number> {
-        const now = new Date().toISOString();
+        const _now = new Date().toISOString();
 
         const result = await db
             .update(governanceRequestsTable)
@@ -290,7 +290,7 @@ export class GovernanceService {
         agentId: string,
         scopes: string[],
         maxSingleSpendUsd: number,
-        expiresInSeconds: number = 86400
+        expiresInSeconds = 86400
     ): Promise<typeof capabilityTokensTable.$inferSelect> {
         const [agent] = await db
             .select()

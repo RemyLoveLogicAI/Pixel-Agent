@@ -5,7 +5,7 @@ export class AgentPool {
     private maxConcurrent: number;
     private timeoutMs: number;
 
-    constructor(maxConcurrent: number = 10, timeoutMs: number = 30000) {
+    constructor(maxConcurrent = 10, timeoutMs = 30000) {
         this.maxConcurrent = maxConcurrent;
         this.timeoutMs = timeoutMs;
     }

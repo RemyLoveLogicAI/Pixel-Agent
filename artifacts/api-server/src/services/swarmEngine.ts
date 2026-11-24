@@ -1,5 +1,5 @@
-import { db, swarmRunsTable, swarmAgentsTable, swarmMessagesTable, agentsTable, goalsTable } from '@workspace/db';
-import { eq, and, sql } from 'drizzle-orm';
+import { db, swarmRunsTable, swarmAgentsTable, agentsTable, } from '@workspace/db';
+import { eq, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { synthesisService } from './synthesisService';
 
@@ -28,7 +28,7 @@ export class SwarmEngine {
 
         // Create swarm run record
         const swarmId = uuidv4();
-        const [swarm] = await db
+        const [_swarm] = await db
             .insert(swarmRunsTable)
             .values({
                 id: swarmId,
@@ -54,7 +54,7 @@ export class SwarmEngine {
     /**
      * Phase 2: APPROVE - If swarm cost estimate > threshold, requires governance approval
      */
-    async approveSwarm(swarmId: string, approvedBy: string) {
+    async approveSwarm(swarmId: string, _approvedBy: string) {
         const [swarm] = await db
             .select()
             .from(swarmRunsTable)

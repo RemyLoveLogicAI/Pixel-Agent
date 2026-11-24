@@ -5,7 +5,6 @@ import {
   heartbeatRunsTable,
   heartbeatAgentRunsTable,
   heartbeatDeadLettersTable,
-  agentsTable,
 } from "@workspace/db";
 import { ApiError } from "../middlewares/error-handler.js";
 import { triggerCompanyHeartbeat } from "../services/heartbeatRunner";

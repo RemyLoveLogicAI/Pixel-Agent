@@ -8,7 +8,7 @@ export class CircuitBreaker {
     private timeoutMs: number;
     private state: 'closed' | 'open' | 'half-open';
 
-    constructor(failureThreshold: number = 3, timeoutMs: number = 60000) {
+    constructor(failureThreshold = 3, timeoutMs = 60000) {
         this.failureThreshold = failureThreshold;
         this.failureCount = 0;
         this.lastFailureTime = null;

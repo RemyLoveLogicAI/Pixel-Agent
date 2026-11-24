@@ -1,6 +1,6 @@
 import { pgTable, text, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod/v4";
+import type { z } from "zod/v4";
 import { swarmRunsTable } from "./swarm-runs";
 import { swarmAgentsTable } from "./swarm-agents";
 
