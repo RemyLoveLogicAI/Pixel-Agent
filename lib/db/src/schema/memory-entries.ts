@@ -1,6 +1,6 @@
 import { pgTable, text, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod/v4";
+import type { z } from "zod/v4";
 import { agentsTable } from "./agents";
 import { companiesTable } from "./companies";
 

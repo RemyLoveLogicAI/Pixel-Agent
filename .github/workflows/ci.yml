@@ -33,7 +33,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run Biome linter
-        run: pnpm dlx @biomejs/biome lint .
+        run: pnpm dlx @biomejs/biome@1.9.4 lint .
 
   type-check:
     name: Type Check

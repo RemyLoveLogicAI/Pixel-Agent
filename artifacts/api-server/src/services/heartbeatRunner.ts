@@ -3,7 +3,6 @@ import { CircuitBreaker } from './circuitBreaker';
 import { db, agentsTable, heartbeatAgentRunsTable, heartbeatRunsTable, heartbeatDeadLettersTable } from '@workspace/db';
 import { eq, and } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
-import { ApiError } from '../middlewares/error-handler';
 import { executeAgentHeartbeat } from './agentExecutor'; // To be implemented
 
 export class HeartbeatRunner {

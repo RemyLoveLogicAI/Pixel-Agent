@@ -1,6 +1,6 @@
 import app from "./app";
 
-const rawPort = process.env["PORT"];
+const rawPort = process.env.PORT;
 
 if (!rawPort) {
   throw new Error(
@@ -15,5 +15,4 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
 });

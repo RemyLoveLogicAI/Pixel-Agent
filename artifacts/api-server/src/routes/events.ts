@@ -40,7 +40,7 @@ router.get("/companies/:companyId/events", (req, res) => {
   if (!subscribers.has(companyId)) {
     subscribers.set(companyId, new Set());
   }
-  subscribers.get(companyId)!.add(send);
+  subscribers.get(companyId)?.add(send);
 
   req.on("close", () => {
     clearInterval(ping);

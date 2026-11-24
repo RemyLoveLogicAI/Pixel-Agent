@@ -43,8 +43,6 @@ async function runHyperSwarm() {
     }
 
     const { companyId, goalId, leaderAgentId, taskDescription } = argv as Record<typeof required[number], string>;
-
-    console.log('🚀 Starting hyper‑swarm sprint...');
     // 1️⃣ Propose
     const proposeResult = await swarmEngine.proposeSwarm(
         companyId,
@@ -52,30 +50,24 @@ async function runHyperSwarm() {
         leaderAgentId,
         taskDescription,
     );
-    console.log('✅ Proposed:', proposeResult.message);
 
     // 2️⃣ Approve (auto‑approve for hyper‑swarm)
-    const approveResult = await swarmEngine.approveSwarm(
+    const _approveResult = await swarmEngine.approveSwarm(
         proposeResult.swarmId,
         leaderAgentId,
     );
-    console.log('✅ Approved:', approveResult.message);
 
     // 3️⃣ Spawn
-    const spawnResult = await swarmEngine.spawnSwarm(proposeResult.swarmId);
-    console.log('✅ Spawned agents:', spawnResult.spawnedAgents.length);
+    const _spawnResult = await swarmEngine.spawnSwarm(proposeResult.swarmId);
 
     // 4️⃣ Execute (parallel execution handled inside SwarmEngine)
-    const execResult = await swarmEngine.executeSwarm(proposeResult.swarmId);
-    console.log('✅ Execution completed. Results count:', execResult.executionResults.length);
+    const _execResult = await swarmEngine.executeSwarm(proposeResult.swarmId);
 
     // 5️⃣ Synthesize
-    const synthResult = await swarmEngine.synthesizeSwarm(proposeResult.swarmId);
-    console.log('✅ Synthesis result summary:', synthResult.synthesisResult.finalSummary);
+    const _synthResult = await swarmEngine.synthesizeSwarm(proposeResult.swarmId);
 
     // 6️⃣ Dissolve
-    const dissolveResult = await swarmEngine.dissolveSwarm(proposeResult.swarmId);
-    console.log('✅ Swarm dissolved. Final phase:', dissolveResult.phase);
+    const _dissolveResult = await swarmEngine.dissolveSwarm(proposeResult.swarmId);
 }
 
 runHyperSwarm().catch((err) => {

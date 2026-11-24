@@ -1,5 +1,4 @@
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 
 type TaskStatus = "pending" | "claimed" | "in_progress" | "review" | "done" | "failed" | "cancelled";
 
@@ -34,7 +33,7 @@ const columns: { status: TaskStatus; label: string; color: string }[] = [
   { status: "done", label: "Done", color: "border-t-emerald-400" },
 ];
 
-const statusBadge: Record<TaskStatus, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
+const _statusBadge: Record<TaskStatus, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
   pending: { variant: "outline", label: "Pending" },
   claimed: { variant: "secondary", label: "Claimed" },
   in_progress: { variant: "default", label: "In Progress" },

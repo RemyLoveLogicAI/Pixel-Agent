@@ -98,7 +98,7 @@ export class HierarchyService {
         // Rule 4: scope subset check
         const unauthorisedScopes = requestedScopes.filter(
             requested => !fromScopes.some(
-                owned => requested === owned || requested.startsWith(owned + ".")
+                owned => requested === owned || requested.startsWith(`${owned}.`)
             )
         );
         if (unauthorisedScopes.length > 0) {
